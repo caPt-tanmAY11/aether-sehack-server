@@ -9,6 +9,7 @@ import { apiRouter } from './routes/index.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
 import { globalRateLimiter } from './middleware/rateLimiter.middleware.js';
 import { initSocketServer } from './notifications/socket.server.js';
+import { startCronJobs } from './analytics/cron.service.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -44,6 +45,7 @@ app.use((err, req, res, next) => {
   res.status(status).json({
     success: false,
     message: err.message || 'Internal Server Error',
+    data: err.data,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
@@ -53,6 +55,7 @@ const PORT = Number(process.env.PORT || 4000);
 
 async function start() {
   await connectDB(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/aether_phase1_test');
+  startCronJobs();
   server.listen(PORT, () => {
     console.log(`[Aether Backend] Running monolith server on port ${PORT}`);
   });

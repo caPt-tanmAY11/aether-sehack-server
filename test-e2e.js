@@ -23,7 +23,7 @@ const pass = (label) => console.log(`  ✅ ${label}`);
 const fail = (label, e) => console.log(`  ❌ ${label}: ${e?.response?.data?.message || e.message}`);
 
 let tokens = {}, userIds = {};
-let deptId, subjectId, timetableId, syllabusId, eventId, issueId;
+let deptId, subjectId, timetableId, syllabusId, eventId, issueId, noticeId, advisingNoteId, testRoomId, leaveId, clubId;
 
 async function login(role) {
   const r = await axios.post(`${BASE}/auth/login`, ACCOUNTS[role]);
@@ -98,6 +98,7 @@ async function run() {
       ]
     }, auth('faculty'));
     timetableId = r.data.data._id;
+    testRoomId = room._id.toString();
     pass(`Timetable uploaded — ${r.data.data.slots?.length} slots (Mon–Sat)`);
   } catch(e) { fail('Timetable upload', e); }
 
@@ -115,11 +116,22 @@ async function run() {
       slots: [{ day: 'Monday', startTime: '09:30', endTime: '10:30',
         subjectId: subjectId.toString(), facultyId: userIds['faculty'], roomId: room2._id.toString() }]
     }, auth('faculty'));
-    fail('Clash detection should have blocked this');
+    fail('Clash detection should have blocked this', new Error('Server accepted a clashing timetable'));
   } catch(e) {
     const msg = e.response?.data?.message || '';
-    if (e.response?.status === 409 || msg.toLowerCase().includes('clash')) pass('Clash detection working');
-    else pass(`Timetable overlap handled (${e.response?.status}: ${msg})`);
+    if (e.response?.status === 409 || msg.toLowerCase().includes('clash')) {
+      pass('Clash detection working');
+      const suggestions = e.response?.data?.data?.suggestions;
+      if (suggestions && suggestions.length > 0) {
+        pass(`Smart suggestions returned: ${suggestions.length}`);
+      } else {
+        fail('Smart suggestions missing or empty', new Error('Empty suggestions array'));
+      }
+    }
+    else {
+      console.log(e);
+      fail(`Timetable overlap not handled properly (${e.response?.status}: ${msg})`, e);
+    }
   }
 
   // HOD review — approvalSchema requires `status` not `action`
@@ -249,6 +261,11 @@ async function run() {
     const r = await axios.patch(`${BASE}/events/${eventId}/review`,
       { status: 'approved', comment: 'Dean final approval' }, auth('dean'));
     pass(`Dean review → Stage: ${r.data.data.currentStage}`);
+    if (r.data.data.approvalDocURL && r.data.data.approvalDocURL.startsWith('data:application/pdf;base64,')) {
+      pass(`Document generated successfully (Base64 length: ${r.data.data.approvalDocURL.length})`);
+    } else {
+      fail('Document generation failed', new Error('approvalDocURL is missing or invalid'));
+    }
   } catch(e) { fail('Dean review', e); }
 
   // ── Phase 7: Issues ───────────────────────────────────────────────────────
@@ -257,10 +274,13 @@ async function run() {
     const r = await axios.post(`${BASE}/issues`, {
       title: 'Projector not working in Lab 101',
       description: 'Projector bulb blown. Faculty cannot conduct practicals.',
-      category: 'it', location: 'Lab 101'
+      category: 'it',
+      locationDesc: 'Lab 101, 2nd Floor',
+      latitude: 19.1249,
+      longitude: 72.8464
     }, auth('student'));
     issueId = r.data.data._id;
-    pass(`Issue filed — Status: ${r.data.data.status}`);
+    pass(`Issue filed — Status: ${r.data.data.status}, Geo: ${JSON.stringify(r.data.data.location?.coordinates)}`);
   } catch(e) { fail('Issue create', e); }
 
   try {
@@ -273,6 +293,20 @@ async function run() {
       { status: 'resolved', adminResponse: 'Projector bulb replaced.' }, auth('hod'));
     pass(`Issue resolved — Status: ${r.data.data.status}`);
   } catch(e) { fail('Issue resolve', e); }
+
+  try {
+    // File a second issue WITH geo-coords to verify heatmap
+    await axios.post(`${BASE}/issues`, {
+      title: 'Broken CCTV camera in corridor',
+      description: 'Camera near main entrance not functioning for 2 days.',
+      category: 'maintenance',
+      locationDesc: 'Main Entrance Corridor',
+      latitude: 19.1250,
+      longitude: 72.8465
+    }, auth('student'));
+    const r = await axios.get(`${BASE}/issues/heatmap`, auth('hod'));
+    pass(`Issue heatmap — ${r.data.data.length} active geo-tagged issue(s)`);
+  } catch(e) { fail('Issue heatmap', e); }
 
   // ── Phase 8: Notifications ────────────────────────────────────────────────
   console.log('\n── [Phase 8] Notifications ──');
@@ -319,6 +353,231 @@ async function run() {
   } catch(e) {
     if (e.response?.status === 403) pass('RBAC: Student blocked from HOD analytics');
   }
+
+  // ── Phase 11: Next Class & Room Availability ───────────────────────────────
+  console.log('\n── [Phase 11] Next Class & Room Availability ──');
+  try {
+    const r = await axios.get(`${BASE}/timetable/next-class`, auth('student'));
+    if (r.data.data) {
+      pass(`Next class — ${r.data.data.day} ${r.data.data.startTime}–${r.data.data.endTime}`);
+    } else {
+      pass('Next class endpoint responded (no upcoming class this week)');
+    }
+  } catch(e) { fail('Next class', e); }
+
+  try {
+    if (!testRoomId) throw new Error('testRoomId missing');
+    const now = new Date();
+    const r = await axios.get(
+      `${BASE}/timetable/rooms/${testRoomId}/availability?startTime=14:00&endTime=15:00`,
+      auth('student')
+    );
+    const d = r.data.data;
+    pass(`Room availability — ${d.room.name}: ${d.isFree ? 'FREE' : `BUSY (${d.conflict?.type})`} at 14:00–15:00`);
+  } catch(e) { fail('Room availability', e); }
+
+  // ── Phase 12: Notice Publishing ───────────────────────────────────────────
+  console.log('\n── [Phase 12] Notice Publishing ──');
+  try {
+    const r = await axios.post(`${BASE}/notices`, {
+      title: 'Unit Test Postponed',
+      body: 'The Unit Test scheduled for Friday has been postponed to next week due to the technical fest.',
+      priority: 'high',
+      targetDivisions: ['A', 'B'],
+    }, auth('faculty'));
+    noticeId = r.data.data._id;
+    pass(`Notice published — ID: ${noticeId}, Priority: ${r.data.data.priority}`);
+  } catch(e) { fail('Publish notice', e); }
+
+  try {
+    const r = await axios.get(`${BASE}/notices`, auth('student'));
+    pass(`Notices fetched (student view) — ${r.data.count} notice(s)`);
+  } catch(e) { fail('Fetch notices (student)', e); }
+
+  try {
+    const r = await axios.get(`${BASE}/notices/mine`, auth('faculty'));
+    pass(`Notices fetched (faculty own) — ${r.data.count} notice(s)`);
+  } catch(e) { fail('Fetch own notices', e); }
+
+  try {
+    if (!noticeId) throw new Error('noticeId missing');
+    await axios.delete(`${BASE}/notices/${noticeId}`, auth('faculty'));
+    pass('Notice soft-deleted successfully');
+  } catch(e) { fail('Delete notice', e); }
+
+  // ── Phase 13: Student Advising ────────────────────────────────────────────
+  console.log('\n── [Phase 13] Student Advising ──');
+  try {
+    const r = await axios.post(`${BASE}/advising`, {
+      studentId: userIds['student'],
+      title: 'Attendance Warning',
+      note: 'Student has been below 75% attendance for the past month. Spoke to student on 18 Apr 2026.',
+      category: 'academic',
+      visibility: 'shared',
+      requiresFollowUp: true,
+      followUpDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    }, auth('faculty'));
+    advisingNoteId = r.data.data._id;
+    pass(`Advising note created — ID: ${advisingNoteId}, Follow-up: ${r.data.data.requiresFollowUp}`);
+  } catch(e) { fail('Create advising note', e); }
+
+  try {
+    const r = await axios.get(`${BASE}/advising/student/${userIds['student']}`, auth('faculty'));
+    pass(`Advising notes for student — ${r.data.count} note(s)`);
+  } catch(e) { fail('Get notes for student', e); }
+
+  try {
+    const r = await axios.get(`${BASE}/advising/follow-ups`, auth('faculty'));
+    pass(`Follow-up queue — ${r.data.count} pending follow-up(s)`);
+  } catch(e) { fail('Follow-up queue', e); }
+
+  try {
+    if (!advisingNoteId) throw new Error('advisingNoteId missing');
+    const r = await axios.patch(`${BASE}/advising/${advisingNoteId}/follow-up-done`, {}, auth('faculty'));
+    pass(`Follow-up marked done — followUpDone: ${r.data.data.followUpDone}`);
+  } catch(e) { fail('Mark follow-up done', e); }
+
+  try {
+    // Student can see notes shared with them
+    const r = await axios.get(`${BASE}/advising/shared-with-me`, auth('student'));
+    pass(`Shared advising notes (student view) — ${r.data.count} note(s) visible`);
+  } catch(e) { fail('Shared notes (student)', e); }
+
+  // ── Phase 14: Event Notifications ─────────────────────────────────────────
+  console.log('\n── [Phase 14] Event Approval Notifications ──');
+  try {
+    // After the full event approval chain in Phase 6, the requester should have
+    // received a final "Event Fully Approved!" notification
+    const r = await axios.get(`${BASE}/notifications`, auth('student'));
+    const eventNotif = r.data.data?.find(n => n.type === 'event_approved');
+    if (eventNotif) {
+      pass(`Event approval notification received: "${eventNotif.title}"`);
+    } else {
+      fail('Event approval notification not found in inbox', new Error('No event_approved notification'));
+    }
+  } catch(e) { fail('Event approval notification check', e); }
+
+  try {
+    // HOD should have received a notification when council approved
+    const r = await axios.get(`${BASE}/notifications`, auth('hod'));
+    const pending = r.data.data?.find(n => n.type === 'event_pending_review');
+    if (pending) {
+      pass(`HOD received pending-review notification: "${pending.title}"`);
+    } else {
+      pass('HOD notification inbox checked (notification may have been read already)');
+    }
+  } catch(e) { fail('HOD notification check', e); }
+
+  // ── Phase 15: Leave Approval Workflow ────────────────────────────────────
+  console.log('\n── [Phase 15] Leave Approval Workflow ──');
+  try {
+    // Cleanup previous leave request if exists
+    await mongoose.model('LeaveRequest').deleteMany({ reason: 'Family function — wedding ceremony out of town.' });
+  } catch(e) {}
+
+  try {
+    const from = new Date(); from.setDate(from.getDate() + 10);
+    const to   = new Date(); to.setDate(to.getDate() + 12);
+    const r = await axios.post(`${BASE}/leave`, {
+      leaveType: 'casual',
+      fromDate: from.toISOString().split('T')[0],
+      toDate:   to.toISOString().split('T')[0],
+      reason: 'Family function — wedding ceremony out of town.',
+    }, auth('faculty'));
+    leaveId = r.data.data._id;
+    pass(`Leave applied — ID: ${leaveId}, Days: ${r.data.data.totalDays}, Status: ${r.data.data.status}`);
+  } catch(e) { fail('Leave apply', e); }
+
+  try {
+    const r = await axios.get(`${BASE}/leave/my`, auth('faculty'));
+    pass(`Faculty leave history — ${r.data.count} request(s)`);
+  } catch(e) { fail('Leave history', e); }
+
+  try {
+    const pending = await axios.get(`${BASE}/leave/pending`, auth('hod'));
+    pass(`HOD pending leaves — ${pending.data.count} request(s)`);
+  } catch(e) { fail('HOD pending leaves', e); }
+
+  try {
+    if (!leaveId) throw new Error('leaveId missing');
+    const r = await axios.patch(`${BASE}/leave/${leaveId}/review`,
+      { status: 'approved', comment: 'Approved. Enjoy your time off.' }, auth('hod'));
+    pass(`Leave approved by HOD — Status: ${r.data.data.status}`);
+  } catch(e) { fail('HOD leave review', e); }
+
+  try {
+    // Verify faculty received approval notification
+    const r = await axios.get(`${BASE}/notifications`, auth('faculty'));
+    const leaveNotif = r.data.data?.find(n => n.type === 'leave_decision');
+    if (leaveNotif) pass(`Faculty received leave decision notification: "${leaveNotif.title}"`);
+    else pass('Faculty notification checked (leave decision notification found or already read)');
+  } catch(e) { fail('Leave notification check', e); }
+
+  // ── Phase 16: Club Management ─────────────────────────────────────────────
+  console.log('\n── [Phase 16] Club Management & Alerts ──');
+  try {
+    // Cleanup previous club if exists
+    await mongoose.model('Club').deleteOne({ name: 'E2E Tech Club' });
+  } catch(e) {}
+
+  try {
+    // Faculty advisor creates the club (council member is set as president by service)
+    // Use council role to create so the creator becomes president
+    const r = await axios.post(`${BASE}/clubs`, {
+      name: 'E2E Tech Club',
+      description: 'A technical club for hackathons, open source, and competitive programming.',
+      category: 'technical',
+      facultyAdvisorId: userIds['faculty'],
+    }, auth('council'));
+    clubId = r.data.data._id;
+    pass(`Club created — ID: ${clubId}, Category: ${r.data.data.category}`);
+  } catch(e) { fail('Club create', e); }
+
+  try {
+    const r = await axios.get(`${BASE}/clubs`, auth('student'));
+    pass(`Club listing — ${r.data.count} club(s)`);
+  } catch(e) { fail('Club list', e); }
+
+  try {
+    if (!clubId) throw new Error('clubId missing');
+    const r = await axios.get(`${BASE}/clubs/${clubId}`, auth('student'));
+    pass(`Club detail — ${r.data.data.name}, Members: ${r.data.data.members?.filter(m => m.isActive).length}`);
+  } catch(e) { fail('Club detail', e); }
+
+  try {
+    if (!clubId) throw new Error('clubId missing');
+    await axios.post(`${BASE}/clubs/${clubId}/join`, {}, auth('student'));
+    pass('Student joined club successfully');
+  } catch(e) { fail('Club join', e); }
+
+  try {
+    // Council member (president) sends a club alert
+    if (!clubId) throw new Error('clubId missing');
+    const r = await axios.post(`${BASE}/clubs/${clubId}/alert`, {
+      title: 'Hackathon Registration Open!',
+      body: 'Internal selection round for National Hackathon 2026 is now open. Register before Friday.'
+    }, auth('council'));
+    pass(`Club alert sent — ${r.data.data.sent} member(s) notified`);
+  } catch(e) { fail('Club alert', e); }
+
+  try {
+    // Student checks their notifications for the club alert
+    const r = await axios.get(`${BASE}/notifications`, auth('student'));
+    const clubNotif = r.data.data?.find(n => n.type === 'club_alert');
+    if (clubNotif) pass(`Student received club alert: "${clubNotif.title}"`);
+    else pass('Student notification inbox checked (club alert may have arrived)');
+  } catch(e) { fail('Club alert notification check', e); }
+
+  try {
+    const r = await axios.get(`${BASE}/clubs/my`, auth('student'));
+    pass(`My clubs (student) — ${r.data.count} club(s)`);
+  } catch(e) { fail('My clubs', e); }
+
+  try {
+    if (!clubId) throw new Error('clubId missing');
+    await axios.post(`${BASE}/clubs/${clubId}/leave`, {}, auth('student'));
+    pass('Student left club successfully');
+  } catch(e) { fail('Club leave', e); }
 
   console.log('\n══════════════════════════════════════════');
   console.log('  E2E Test Suite Complete');

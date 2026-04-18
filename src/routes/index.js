@@ -7,6 +7,10 @@ import { issueRouter } from '../issues/issue.routes.js';
 import { notificationRouter } from '../notifications/notification.routes.js';
 import { chatbotRouter } from '../chatbot/chatbot.routes.js';
 import { analyticsRouter } from '../analytics/analytics.routes.js';
+import { noticeRouter } from '../notices/notice.routes.js';
+import { advisingRouter } from '../advising/advising.routes.js';
+import { leaveRouter } from '../leave/leave.routes.js';
+import { clubRouter } from '../clubs/club.routes.js';
 
 const router = Router();
 
@@ -19,5 +23,9 @@ router.use('/issues', issueRouter);
 router.use('/notifications', notificationRouter);
 router.use('/chatbot', chatbotRouter);
 router.use('/analytics', analyticsRouter);
+router.use('/notices', noticeRouter);
+router.use('/advising', advisingRouter);
+router.use('/leave', leaveRouter);
+router.use('/clubs', clubRouter);
 
 export { router as apiRouter };

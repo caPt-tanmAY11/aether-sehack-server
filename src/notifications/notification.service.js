@@ -1,5 +1,6 @@
-import { Notification } from '../shared.js';
+import { Notification, User } from '../shared.js';
 import { pushToUser } from './socket.server.js';
+import { fcmService } from './fcm.service.js';
 
 class NotificationService {
   /**
@@ -23,6 +24,21 @@ class NotificationService {
       type,
       createdAt: notif.createdAt
     });
+
+    // Offline push via Firebase Cloud Messaging (FCM)
+    User.findById(userId).select('pushTokens').then(user => {
+      if (user && user.pushTokens && user.pushTokens.length > 0) {
+        fcmService.sendPushNotification(user.pushTokens, {
+          title,
+          body,
+          data: {
+            notificationId: notif._id.toString(),
+            type,
+            ...metadata
+          }
+        }).catch(console.error);
+      }
+    }).catch(console.error);
 
     return notif;
   }

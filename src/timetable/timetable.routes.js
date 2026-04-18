@@ -43,4 +43,25 @@ router.get(
   timetableController.getDepartmentTimetables
 );
 
+// Get Next Class for Student
+router.get(
+  '/next-class',
+  requireRoles('student'),
+  timetableController.getNextClass
+);
+
+// Check Room Availability
+router.get(
+  '/rooms/:id/availability',
+  requireRoles('student', 'faculty', 'hod', 'dean', 'council'),
+  timetableController.getRoomAvailability
+);
+
+// Get all rooms with current availability (for VacantRoomsScreen)
+router.get(
+  '/vacant',
+  requireRoles('student', 'faculty', 'hod', 'dean', 'council'),
+  timetableController.getVacantRooms
+);
+
 export { router as timetableRouter };

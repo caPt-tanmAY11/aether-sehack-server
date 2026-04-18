@@ -11,7 +11,12 @@ const IssueSchema = new Schema(
     },
     description: { type: String, required: true },
     mediaURLs: [{ type: String }],
-    location: { type: String },
+    locationDesc: { type: String }, // e.g. "Library 2nd Floor"
+    // GeoJSON point for the heatmap feature
+    location: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], index: '2dsphere' } // [longitude, latitude]
+    },
     status: { type: String, enum: ['open', 'in_progress', 'resolved'], default: 'open' },
     // Assigned by admin after triage — optional on creation
     assignedTo: { type: Schema.Types.ObjectId, ref: 'User' },

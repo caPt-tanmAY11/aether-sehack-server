@@ -70,5 +70,37 @@ export const timetableController = {
       const data = await timetableService.getAllForDept(req.user.departmentId);
       res.json({ success: true, data });
     } catch (err) { next(err); }
-  }
+  },
+
+  async getNextClass(req, res, next) {
+    try {
+      const division = req.user.division;
+      if (!division) throw { status: 400, message: 'No division assigned. Contact admin.' };
+      const semester = req.query.semester ? Number(req.query.semester) : 3;
+      const year = new Date().getFullYear();
+      const academicYear = req.query.academicYear || `${year}-${year + 1}`;
+      const data = await timetableService.getNextClass(
+        req.user.departmentId, division, semester, academicYear
+      );
+      res.json({ success: true, data });
+    } catch (err) { next(err); }
+  },
+
+  async getRoomAvailability(req, res, next) {
+    try {
+      const { date, startTime, endTime } = req.query;
+      const data = await timetableService.getRoomAvailability(
+        req.params.id, date, startTime, endTime
+      );
+      res.json({ success: true, data });
+    } catch (err) { next(err); }
+  },
+
+  async getVacantRooms(req, res, next) {
+    try {
+      const { date, time } = req.query;
+      const data = await timetableService.getVacantRooms(date, time);
+      res.json({ success: true, data });
+    } catch (err) { next(err); }
+  },
 };

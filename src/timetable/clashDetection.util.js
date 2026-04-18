@@ -79,15 +79,23 @@ function generateSlotSuggestions(clashingSlots, existingSlots) {
       const start = timeToMinutes(slot.startTime);
       const end = timeToMinutes(slot.endTime);
 
-      const isFacultyBusy = existingSlots.some(ex => {
-        if (ex.day !== day || !clashFacultyIds.has(ex.facultyId)) return false;
+      const isBusy = existingSlots.some(ex => {
+        if (ex.day !== day) return false;
+        
+        const facultyMatch = clashFacultyIds.has(ex.facultyId);
+        const roomId = clashingSlots[0]?.roomId;
+        const roomMatch = ex.roomId === roomId;
+        const opEventMatch = ex.isOperationalEvent && ex.roomId === roomId; // for operational events
+        
+        if (!facultyMatch && !roomMatch && !opEventMatch) return false;
+        
         return intervalsOverlap(
           { start, end },
           { start: timeToMinutes(ex.startTime), end: timeToMinutes(ex.endTime) }
         );
       });
 
-      if (!isFacultyBusy) {
+      if (!isBusy) {
         const roomId = clashingSlots[0]?.roomId || 'TBD';
         suggestions.push({ day, ...slot, roomId });
       }

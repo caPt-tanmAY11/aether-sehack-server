@@ -3,7 +3,9 @@ import { issueService } from './issue.service.js';
 export const issueController = {
   async createOne(req, res, next) {
     try {
-      const issue = await issueService.raiseIssue(req.user.userId, req.body);
+      const mediaURLs = req.files ? req.files.map(f => f.path) : [];
+      const issueData = { ...req.body, mediaURLs };
+      const issue = await issueService.raiseIssue(req.user.userId, issueData);
       res.status(201).json({ success: true, message: 'Issue reported to authorities.', data: issue });
     } catch(err) { next(err); }
   },
@@ -20,6 +22,13 @@ export const issueController = {
       const catQuery = req.query.categories ? req.query.categories.split(',') : [];
       const docs = await issueService.getAllIssues(req.user.role, catQuery);
       res.status(200).json({ success: true, data: docs });
+    } catch(err) { next(err); }
+  },
+
+  async fetchHeatmap(req, res, next) {
+    try {
+      const data = await issueService.getHeatmap();
+      res.status(200).json({ success: true, data });
     } catch(err) { next(err); }
   },
 

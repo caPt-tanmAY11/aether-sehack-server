@@ -125,6 +125,156 @@ class TimetableService {
       .populate('slots.facultyId', 'name')
       .populate('slots.roomId', 'name building floor');
   }
+
+  /**
+   * Returns the single next upcoming class slot for a student based on current time.
+   */
+  async getNextClass(departmentId, division, semester, academicYear) {
+    const timetable = await this.getForStudent(departmentId, division, semester, academicYear);
+    if (!timetable) return null;
+
+    const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const now = new Date();
+    const todayIdx = now.getDay();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Convert HH:MM to total minutes
+    const toMin = (t) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    // Check today first, then roll over to upcoming days
+    for (let offset = 0; offset < 7; offset++) {
+      const dayIdx = (todayIdx + offset) % 7;
+      const dayName = DAYS[dayIdx];
+
+      const slotsForDay = timetable.slots
+        .filter(s => s.day === dayName)
+        .sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+
+      for (const slot of slotsForDay) {
+        const slotStart = toMin(slot.startTime);
+        // On today, only show future classes; on future days show all classes
+        if (offset > 0 || slotStart > nowMinutes) {
+          return {
+            day: dayName,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            subject: slot.subjectId,
+            faculty: slot.facultyId,
+            room: slot.roomId,
+            isToday: offset === 0,
+          };
+        }
+      }
+    }
+    return null; // No upcoming class found in the next 7 days
+  }
+
+  /**
+   * Check if a given room is currently free (right now) or within a queried time window.
+   */
+  async getRoomAvailability(roomId, queryDate, startTime, endTime) {
+    const { Room } = await import('../shared.js');
+    const room = await Room.findById(roomId);
+    if (!room) throw { status: 404, message: 'Room not found' };
+
+    const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dateToCheck = queryDate ? new Date(queryDate) : new Date();
+    const dayName = DAYS[dateToCheck.getDay()];
+
+    const queryStart = startTime || `${String(dateToCheck.getHours()).padStart(2,'0')}:${String(dateToCheck.getMinutes()).padStart(2,'0')}`;
+    const queryEnd = endTime || `${String(dateToCheck.getHours() + 1).padStart(2,'0')}:${String(dateToCheck.getMinutes()).padStart(2,'0')}`;
+
+    const toMin = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+    const qStart = toMin(queryStart);
+    const qEnd = toMin(queryEnd);
+
+    // Check academic timetables
+    const timetables = await Timetable.find({
+      'slots.roomId': new mongoose.Types.ObjectId(roomId),
+      status: 'approved',
+    });
+
+    let clashingSlot = null;
+    for (const tt of timetables) {
+      const clash = tt.slots.find(s =>
+        s.roomId?.toString() === roomId &&
+        s.day === dayName &&
+        toMin(s.startTime) < qEnd &&
+        toMin(s.endTime) > qStart
+      );
+      if (clash) { clashingSlot = clash; break; }
+    }
+
+    // Check operational events (EventRequests)
+    const { EventRequest } = await import('../shared.js');
+    const opStart = new Date(dateToCheck);
+    const [qsh, qsm] = queryStart.split(':').map(Number);
+    const [qeh, qem] = queryEnd.split(':').map(Number);
+    opStart.setHours(qsh, qsm, 0, 0);
+    const opEnd = new Date(dateToCheck);
+    opEnd.setHours(qeh, qem, 0, 0);
+
+    const opClash = await EventRequest.findOne({
+      currentStage: 'approved',
+      venue: new RegExp(`^${room.name}$`, 'i'),
+      $or: [
+        { startTime: { $lt: opEnd, $gte: opStart } },
+        { endTime: { $gt: opStart, $lte: opEnd } },
+        { startTime: { $lte: opStart }, endTime: { $gte: opEnd } }
+      ]
+    });
+
+    const isFree = !clashingSlot && !opClash;
+    return {
+      room,
+      isFree,
+      day: dayName,
+      queryWindow: { start: queryStart, end: queryEnd },
+      conflict: clashingSlot
+        ? { type: 'academic', slot: clashingSlot }
+        : opClash
+        ? { type: 'event', event: { title: opClash.title, venue: opClash.venue } }
+        : null,
+    };
+  }
+
+  /**
+   * Find all currently vacant rooms.
+   */
+  async getVacantRooms(queryDate, queryTime) {
+    const { Room } = await import('../shared.js');
+    const rooms = await Room.find();
+    
+    // Default to right now if not provided
+    const dateToCheck = queryDate ? new Date(queryDate) : new Date();
+    
+    let timeStr = queryTime;
+    if (!timeStr) {
+      timeStr = `${String(dateToCheck.getHours()).padStart(2,'0')}:${String(dateToCheck.getMinutes()).padStart(2,'0')}`;
+    }
+
+    const vacantRooms = [];
+    for (const room of rooms) {
+      try {
+        const avail = await this.getRoomAvailability(room._id, dateToCheck, timeStr, null);
+        if (avail.isFree) {
+          vacantRooms.push({
+            _id: room._id,
+            name: room.name,
+            building: room.building,
+            floor: room.floor,
+            capacity: room.capacity
+          });
+        }
+      } catch (err) {
+        console.error('Error checking room availability', room.name, err);
+      }
+    }
+    return vacantRooms;
+  }
 }
 
 export const timetableService = new TimetableService();

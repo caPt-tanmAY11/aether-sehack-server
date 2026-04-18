@@ -110,10 +110,29 @@ function getModel() {
 class ChatbotService {
   async chat(user, query) {
     const aiModel = getModel();
-
     const chat = aiModel.startChat({ history: [] });
 
-    let response = await chat.sendMessage(query);
+    // ── Exponential backoff helper ──────────────────────────────────────────
+    const sendWithRetry = async (message, maxRetries = 3) => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          return await chat.sendMessage(message);
+        } catch (err) {
+          const is429 = err?.status === 429 || err?.message?.includes('429');
+          if (is429 && attempt < maxRetries) {
+            const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500; // 1s, 2s, 4s + jitter
+            console.warn(`[Chatbot] Gemini rate limited. Retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${maxRetries})...`);
+            await new Promise(r => setTimeout(r, delay));
+          } else {
+            // Not a 429 or exhausted retries — surface a clean error
+            if (is429) throw { status: 429, message: 'AI service is temporarily overloaded. Please try again in a moment.' };
+            throw err;
+          }
+        }
+      }
+    };
+
+    let response = await sendWithRetry(query);
     let finalText = '';
     let escalated = false;
     let escalatedTo = null;
@@ -138,7 +157,7 @@ class ChatbotService {
         })
       );
 
-      response = await chat.sendMessage(toolResults);
+      response = await sendWithRetry(toolResults);
     }
 
     const classification = escalated ? 'escalation' : (query.length < 60 ? 'basic' : 'procedural');

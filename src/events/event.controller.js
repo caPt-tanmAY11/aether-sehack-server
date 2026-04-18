@@ -28,5 +28,12 @@ export const eventController = {
       const requests = await eventService.getMyEvents(req.user.userId);
       res.status(200).json({ success: true, data: requests });
     } catch(err) { next(err); }
+  },
+
+  async getAllApproved(req, res, next) {
+    try {
+      const events = await eventService.getAllApproved();
+      res.status(200).json({ success: true, count: events.length, data: events });
+    } catch(err) { next(err); }
   }
 };

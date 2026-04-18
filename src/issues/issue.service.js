@@ -2,12 +2,22 @@ import { Issue, User } from '../shared.js';
 
 class IssueService {
   async raiseIssue(userId, data) {
+    let locationObj;
+    if (data.longitude && data.latitude) {
+      locationObj = {
+        type: 'Point',
+        coordinates: [parseFloat(data.longitude), parseFloat(data.latitude)]
+      };
+    }
+
     const issue = await Issue.create({
       reportedBy: userId,
       title: data.title,
       description: data.description,
       category: data.category,
-      location: data.location,
+      locationDesc: data.locationDesc,
+      location: locationObj,
+      mediaURLs: data.mediaURLs || [],
       status: 'open',
     });
     return issue;
@@ -44,6 +54,16 @@ class IssueService {
 
     await issue.save();
     return issue;
+  }
+
+  async getHeatmap() {
+    // Returns issues that have a valid GeoJSON location
+    return Issue.find({
+      'location.coordinates': { $exists: true, $not: { $size: 0 } },
+      status: { $in: ['open', 'in_progress'] }
+    })
+      .select('title category location status createdAt')
+      .lean();
   }
 }
 

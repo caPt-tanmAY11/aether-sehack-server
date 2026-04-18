@@ -14,6 +14,12 @@ router.post(
   eventController.submitEvent
 );
 
+// Get all approved events (public to authenticated users)
+router.get(
+  '/',
+  eventController.getAllApproved
+);
+
 // Admins get their pending queue
 router.get(
   '/pending',

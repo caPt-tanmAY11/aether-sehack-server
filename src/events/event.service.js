@@ -1,5 +1,7 @@
 import { EventRequest, Timetable, User, getPublisher } from '../shared.js';
 import mongoose from 'mongoose';
+import { generateEventCertificate } from '../utils/pdf.util.js';
+import { notificationService } from '../notifications/notification.service.js';
 
 // Checks overlaps against all approved timetables containing a specific room/venue
 async function checkVenueClash(venueName, startTime, endTime) {
@@ -18,10 +20,24 @@ async function checkVenueClash(venueName, startTime, endTime) {
   if (!clash) return false;
 
   // Manual strict comparison checking overlap logic (simplified for prototype)
-  const exactSlot = clash.slots.find(s => s.day === dayOfWeek && s.roomId && s.roomId.name === venueName);
+  const exactSlot = clash?.slots.find(s => s.day === dayOfWeek && s.roomId && s.roomId.name === venueName);
   if (exactSlot) {
     if (startHour < exactSlot.endTime && endHour > exactSlot.startTime) return true;
   }
+
+  // Also check against operational events (EventRequests)
+  const operationalClash = await EventRequest.findOne({
+    currentStage: 'approved',
+    venue: new RegExp(`^${venueName}$`, 'i'),
+    $or: [
+      { startTime: { $lt: endTime, $gte: startTime } },
+      { endTime: { $gt: startTime, $lte: endTime } },
+      { startTime: { $lte: startTime }, endTime: { $gte: endTime } }
+    ]
+  });
+
+  if (operationalClash) return true;
+
   return false;
 }
 
@@ -87,15 +103,54 @@ class EventService {
 
     if (status === 'rejected') {
       event.currentStage = 'rejected';
+      // Notify requester of rejection
+      notificationService.send(event.requestedBy, {
+        title: 'Event Request Rejected',
+        body: `Your event "${event.title}" was rejected by ${actorUser.role.toUpperCase()}. Comment: ${comment || 'No comment.'}`,
+        type: 'event_rejected',
+        metadata: { eventId: event._id }
+      }).catch(console.error);
     } else if (status === 'approved') {
       if (actorUser.role === 'council') {
         event.currentStage = 'hod';
+        // Notify all HODs of this department that there is a pending event for review
+        const hods = await User.find({ role: 'hod', departmentId: event.departmentId });
+        hods.forEach(hod => {
+          notificationService.send(hod._id, {
+            title: 'New Event Pending Your Review',
+            body: `Event "${event.title}" has been approved by Student Council and requires HOD review.`,
+            type: 'event_pending_review',
+            metadata: { eventId: event._id }
+          }).catch(console.error);
+        });
       } else if (actorUser.role === 'hod') {
-        // HOD approves -> send to Dean for final
         event.currentStage = 'dean';
+        // Notify the Dean(s)
+        const deans = await User.find({ role: 'dean' });
+        deans.forEach(dean => {
+          notificationService.send(dean._id, {
+            title: 'Event Awaiting Final Approval',
+            body: `Event "${event.title}" has been approved by HOD and requires Dean's final approval.`,
+            type: 'event_pending_review',
+            metadata: { eventId: event._id }
+          }).catch(console.error);
+        });
       } else if (actorUser.role === 'dean') {
-        // Dean approves -> Fully live
         event.currentStage = 'approved';
+        // Generate document
+        try {
+          const reqUser = await User.findById(event.requestedBy);
+          event.approvalDocURL = await generateEventCertificate(event, reqUser || { name: 'Unknown' });
+        } catch (err) {
+          console.error('[Document Generation Error]', err);
+        }
+        // Notify requester of final approval
+        notificationService.send(event.requestedBy, {
+          title: '🎉 Event Fully Approved!',
+          body: `Your event "${event.title}" has been approved by the Dean. Your approval certificate is ready.`,
+          type: 'event_approved',
+          metadata: { eventId: event._id }
+        }).catch(console.error);
       }
     }
 
@@ -105,6 +160,12 @@ class EventService {
 
   async getMyEvents(studentId) {
     return EventRequest.find({ requestedBy: studentId }).sort({ createdAt: -1 });
+  }
+
+  async getAllApproved() {
+    return EventRequest.find({ currentStage: 'approved' })
+      .populate('requestedBy', 'name')
+      .sort({ startTime: 1 });
   }
 }
 

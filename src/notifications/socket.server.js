@@ -1,4 +1,6 @@
 import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 import { verifyAccessToken } from '../utils/jwt.js';
 
 let io = null;
@@ -7,11 +9,18 @@ let io = null;
 const userSockets = new Map();
 
 export function initSocketServer(httpServer) {
+  const pubClient = new Redis(process.env.REDIS_URI || 'redis://127.0.0.1:6379');
+  const subClient = pubClient.duplicate();
+
+  pubClient.on('error', (err) => console.error('[Redis Pub] Error:', err.message));
+  subClient.on('error', (err) => console.error('[Redis Sub] Error:', err.message));
+
   io = new Server(httpServer, {
     cors: {
       origin: '*', // Tighten per env in production
       methods: ['GET', 'POST']
-    }
+    },
+    adapter: createAdapter(pubClient, subClient)
   });
 
   io.use((socket, next) => {
