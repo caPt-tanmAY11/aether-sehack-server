@@ -36,6 +36,13 @@ router.get(
   timetableController.getMyTimetable
 );
 
+// Get Faculty's own submitted timetables with HOD feedback
+router.get(
+  '/my-submissions',
+  requireRoles('faculty'),
+  timetableController.getMySubmissions
+);
+
 // Get all approved timetables for the Dept (HOD/Dean)
 router.get(
   '/department',

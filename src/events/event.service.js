@@ -25,9 +25,9 @@ async function checkVenueClash(venueName, startTime, endTime) {
     if (startHour < exactSlot.endTime && endHour > exactSlot.startTime) return true;
   }
 
-  // Also check against operational events (EventRequests)
+  // Also check against operational events (EventRequests) — any non-rejected event holds the venue
   const operationalClash = await EventRequest.findOne({
-    currentStage: 'approved',
+    currentStage: { $in: ['council', 'hod', 'dean', 'approved'] },
     venue: new RegExp(`^${venueName}$`, 'i'),
     $or: [
       { startTime: { $lt: endTime, $gte: startTime } },

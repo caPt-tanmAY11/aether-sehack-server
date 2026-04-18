@@ -1,6 +1,7 @@
 import { Timetable, User, cacheGet, cacheSet, cacheDel } from '../shared.js';
 import { detectTimetableClashes } from './clashDetection.util.js';
 import mongoose from 'mongoose';
+import { notificationService } from '../notifications/notification.service.js';
 
 const CACHE_TTL = 600;  // 10 minutes
 
@@ -84,6 +85,22 @@ class TimetableService {
     await timetable.save();
 
     await cacheDel(`timetable:dept:${timetable.departmentId}:div:${timetable.division}:sem:${timetable.semester}`);
+
+    // Notify the faculty who uploaded the timetable
+    const label = `Sem ${timetable.semester} Div ${timetable.division} (${timetable.academicYear})`;
+    const notifTitle = action === 'approved'
+      ? `✅ Timetable Approved`
+      : `❌ Timetable Rejected`;
+    const notifBody = action === 'approved'
+      ? `Your timetable for ${label} has been approved by the HOD and is now live.${comment ? ` Remark: ${comment}` : ''}`
+      : `Your timetable for ${label} was rejected by the HOD. Remark: ${comment || 'No remark provided.'}`;
+
+    notificationService.send(timetable.uploadedBy, {
+      title: notifTitle,
+      body: notifBody,
+      type: 'timetable_reviewed',
+      metadata: { timetableId: timetable._id }
+    }).catch(console.error);
 
     return timetable;
   }
@@ -274,6 +291,17 @@ class TimetableService {
       }
     }
     return vacantRooms;
+  }
+
+  /**
+   * Returns all timetables submitted by a specific faculty member,
+   * including their approval status and any HOD remarks.
+   */
+  async getMySubmissions(facultyId) {
+    return Timetable.find({ uploadedBy: new mongoose.Types.ObjectId(facultyId) })
+      .populate('slots.subjectId', 'name code')
+      .populate('slots.roomId', 'name building floor')
+      .sort({ createdAt: -1 });
   }
 }
 

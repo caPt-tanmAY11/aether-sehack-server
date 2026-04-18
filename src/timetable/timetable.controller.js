@@ -103,4 +103,11 @@ export const timetableController = {
       res.json({ success: true, data });
     } catch (err) { next(err); }
   },
+
+  async getMySubmissions(req, res, next) {
+    try {
+      const data = await timetableService.getMySubmissions(req.user.userId);
+      res.json({ success: true, data });
+    } catch (err) { next(err); }
+  },
 };
