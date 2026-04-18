@@ -1,0 +1,32 @@
+import { syllabusService } from './syllabus.service.js';
+
+export const syllabusController = {
+  async initTracker(req, res, next) {
+    try {
+      const result = await syllabusService.initializeSyllabus(
+        req.user.userId, req.user.departmentId, req.body
+      );
+      res.status(201).json({ success: true, message: 'Syllabus initialized', data: result });
+    } catch (err) { next(err); }
+  },
+
+  async updateTopic(req, res, next) {
+    try {
+      const { topicId, status, notes } = req.body;
+      const result = await syllabusService.updateTopicCompletion(
+        req.user.userId, req.params.trackerId, topicId, status, notes
+      );
+      res.status(200).json({ success: true, message: 'Topic status updated', data: result });
+    } catch (err) { next(err); }
+  },
+
+  async studentOverview(req, res, next) {
+    try {
+      const { semester, academicYear } = req.query;
+      const result = await syllabusService.getStudentProgressOverview(
+        req.user.departmentId, semester, academicYear
+      );
+      res.status(200).json({ success: true, data: result });
+    } catch (err) { next(err); }
+  }
+};
