@@ -1,4 +1,5 @@
 import { LeaveRequest } from '../models/LeaveRequest.model.js';
+import { StudentLeave } from '../models/StudentLeave.model.js';
 import { User } from '../shared.js';
 import { notificationService } from '../notifications/notification.service.js';
 import mongoose from 'mongoose';
@@ -123,6 +124,37 @@ class LeaveService {
       .populate('facultyId', 'name email employeeId')
       .populate('substituteId', 'name')
       .sort({ fromDate: -1 });
+  }
+
+  async applyStudentLeave(studentId, { facultyId, fromDate, toDate, reason, leaveType }) {
+    const faculty = await User.findById(facultyId);
+    if (!faculty || faculty.role !== 'faculty') throw { status: 404, message: 'Faculty not found' };
+    const from = new Date(fromDate);
+    const to = new Date(toDate);
+    if (to < from) throw { status: 400, message: 'toDate must be after fromDate' };
+    return StudentLeave.create({ studentId, facultyId, fromDate: from, toDate: to, reason, leaveType: leaveType || 'personal' });
+  }
+
+  async getStudentMyLeaves(studentId) {
+    return StudentLeave.find({ studentId })
+      .populate('facultyId', 'name email')
+      .sort({ createdAt: -1 });
+  }
+
+  async getStudentLeavesForFaculty(facultyId) {
+    return StudentLeave.find({ facultyId })
+      .populate('studentId', 'name email enrollmentNo division semester')
+      .sort({ createdAt: -1 });
+  }
+
+  async reviewStudentLeave(facultyId, leaveId, { status, remarks }) {
+    const leave = await StudentLeave.findById(leaveId);
+    if (!leave) throw { status: 404, message: 'Leave not found' };
+    if (leave.facultyId.toString() !== facultyId.toString()) throw { status: 403, message: 'Not authorized' };
+    leave.status = status;
+    if (remarks) leave.remarks = remarks;
+    await leave.save();
+    return leave;
   }
 }
 

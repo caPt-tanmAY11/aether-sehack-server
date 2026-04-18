@@ -45,13 +45,8 @@ async function runDailyHealthCheck() {
 
   try {
     // ── 1. Attendance Alert ─────────────────────────────────────────────────
-    const departments = await (await import('../shared.js')).default?.Department?.find()
-      || (await import('../shared.js')).then(m => m.Department?.find());
-
-    // Fetch all departments from DB
-    const { default: mongoose2 } = await import('mongoose');
-    const deptModel = mongoose2.model('Department');
-    const allDepts = await deptModel.find().lean();
+    const { Department } = await import('../shared.js');
+    const allDepts = await Department.find().lean();
 
     for (const dept of allDepts) {
       const pct = await getDeptAttendancePercent(dept._id.toString());

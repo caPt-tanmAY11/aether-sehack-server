@@ -49,4 +49,18 @@ export const authController = {
       res.json({ success: true, message: 'Push token registered' });
     } catch (err) { next(err); }
   },
+
+  async listUsers(req, res, next) {
+    try {
+      const { role } = req.query;
+      const filter = {};
+      if (role) filter.role = role;
+      const users = await User.find(filter)
+        .select('name email role departmentId enrollmentNo semester division')
+        .populate('departmentId', 'name code')
+        .limit(200)
+        .sort({ name: 1 });
+      res.json({ success: true, data: users });
+    } catch (err) { next(err); }
+  },
 };

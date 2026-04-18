@@ -4,10 +4,9 @@ import { requireRoles } from '../middleware/rbac.middleware.js';
 
 const router = Router();
 
-// Anyone authenticated can list and view clubs
 router.get(
   '/',
-  requireRoles('student', 'faculty', 'hod', 'dean', 'council', 'superadmin'),
+  requireRoles('student', 'faculty', 'hod', 'dean', 'council', 'superadmin', 'committee'),
   clubController.list
 );
 
@@ -17,9 +16,16 @@ router.get(
   clubController.getMyClubs
 );
 
+// President/Advisor/Committee: see pending join requests for all clubs they manage
+router.get(
+  '/pending-requests',
+  requireRoles('student', 'faculty', 'council', 'superadmin', 'committee'),
+  clubController.getPendingRequests
+);
+
 router.get(
   '/:id',
-  requireRoles('student', 'faculty', 'hod', 'dean', 'council', 'superadmin'),
+  requireRoles('student', 'faculty', 'hod', 'dean', 'council', 'superadmin', 'committee'),
   clubController.getById
 );
 
@@ -30,11 +36,18 @@ router.post(
   clubController.create
 );
 
-// Any student/council member joins a club
+// Any student/council member submits a join request
 router.post(
-  '/:id/join',
+  '/:id/request-join',
   requireRoles('student', 'council'),
-  clubController.join
+  clubController.requestJoin
+);
+
+// President or Advisor reviews a join request
+router.patch(
+  '/:id/join-requests/:requestId/review',
+  requireRoles('student', 'council', 'faculty', 'committee'),
+  clubController.reviewJoinRequest
 );
 
 // Member leaves a club
@@ -47,7 +60,7 @@ router.post(
 // President or Advisor broadcasts an alert to all club members
 router.post(
   '/:id/alert',
-  requireRoles('student', 'council', 'faculty'),
+  requireRoles('student', 'council', 'faculty', 'committee'),
   clubController.sendAlert
 );
 

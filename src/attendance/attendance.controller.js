@@ -20,5 +20,20 @@ export const attendanceController = {
       const report = await attendanceService.getStudentReport(req.user.userId, req.user.departmentId);
       res.status(200).json({ success: true, data: report });
     } catch (err) { next(err); }
+  },
+
+  async myDetailedReport(req, res, next) {
+    try {
+      const report = await attendanceService.getStudentDetailedReport(req.user.userId, req.user.departmentId);
+      res.status(200).json({ success: true, data: report });
+    } catch (err) { next(err); }
+  },
+
+  async getSession(req, res, next) {
+    try {
+      const { timetableId, day, startTime, date } = req.query;
+      const session = await attendanceService.getSessionAttendance(timetableId, day, startTime, date);
+      res.json({ success: true, data: session });
+    } catch (err) { next(err); }
   }
 };

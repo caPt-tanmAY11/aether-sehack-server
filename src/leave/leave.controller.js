@@ -37,4 +37,32 @@ export const leaveController = {
       res.json({ success: true, count: leaves.length, data: leaves });
     } catch (err) { next(err); }
   },
+
+  async studentApply(req, res, next) {
+    try {
+      const leave = await leaveService.applyStudentLeave(req.user.userId, req.body);
+      res.status(201).json({ success: true, message: 'Leave application submitted', data: leave });
+    } catch (err) { next(err); }
+  },
+
+  async studentMyLeaves(req, res, next) {
+    try {
+      const leaves = await leaveService.getStudentMyLeaves(req.user.userId);
+      res.json({ success: true, data: leaves });
+    } catch (err) { next(err); }
+  },
+
+  async studentIncoming(req, res, next) {
+    try {
+      const leaves = await leaveService.getStudentLeavesForFaculty(req.user.userId);
+      res.json({ success: true, data: leaves });
+    } catch (err) { next(err); }
+  },
+
+  async studentReview(req, res, next) {
+    try {
+      const leave = await leaveService.reviewStudentLeave(req.user.userId, req.params.id, req.body);
+      res.json({ success: true, data: leave });
+    } catch (err) { next(err); }
+  },
 };

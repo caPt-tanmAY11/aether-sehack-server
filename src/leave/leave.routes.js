@@ -39,4 +39,32 @@ router.patch(
   leaveController.review
 );
 
+// Student applies for leave (directed to faculty)
+router.post(
+  '/student',
+  requireRoles('student'),
+  leaveController.studentApply
+);
+
+// Student views their own leave history
+router.get(
+  '/student/my',
+  requireRoles('student'),
+  leaveController.studentMyLeaves
+);
+
+// Faculty views incoming student leaves
+router.get(
+  '/student/incoming',
+  requireRoles('faculty', 'hod', 'superadmin'),
+  leaveController.studentIncoming
+);
+
+// Faculty approves or rejects a student leave
+router.patch(
+  '/student/:id/review',
+  requireRoles('faculty', 'hod', 'superadmin'),
+  leaveController.studentReview
+);
+
 export { router as leaveRouter };

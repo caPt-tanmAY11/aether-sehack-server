@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
 export const createEventSchema = z.object({
-  title: z.string().min(5).max(100),
-  description: z.string().min(10),
-  venue: z.string().min(2),
-  startTime: z.string().datetime({ offset: true }),
-  endTime: z.string().datetime({ offset: true }),
-  expectedAttendance: z.number().min(1).default(50),
+  title: z.string().min(1, "Title is required").max(100),
+  description: z.string().min(1, "Description is required"),
+  venue: z.string().min(1, "Venue is required"),
+  startTime: z.coerce.date(),
+  endTime: z.coerce.date(),
+  expectedAttendance: z.coerce.number().min(1).default(50),
 });
 
 export const eventApprovalSchema = z.object({

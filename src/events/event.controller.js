@@ -30,10 +30,12 @@ export const eventController = {
     } catch(err) { next(err); }
   },
 
-  async getAllApproved(req, res, next) {
+  async getAllEvents(req, res, next) {
     try {
-      const events = await eventService.getAllApproved();
-      res.status(200).json({ success: true, count: events.length, data: events });
-    } catch(err) { next(err); }
+      const events = await eventService.getAllEvents();
+      res.json({ success: true, data: events });
+    } catch (err) {
+      next(err);
+    }
   }
 };

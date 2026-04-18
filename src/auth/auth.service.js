@@ -15,11 +15,20 @@ class AuthService {
       subRole: user.subRole,
       departmentId: user.departmentId.toString(),
       division: user.division || null,
+      semester: user.semester || null,
+      enrollmentNo: user.enrollmentNo || null,
       email: user.email,
     };
 
     return {
-      user: { _id: user._id, name: user.name, email: user.email, role: user.role },
+      user: {
+        _id: user._id, name: user.name, email: user.email,
+        role: user.role, subRole: user.subRole,
+        departmentId: user.departmentId,
+        semester: user.semester,
+        division: user.division,
+        enrollmentNo: user.enrollmentNo,
+      },
       accessToken: signAccessToken(tokenPayload),
       refreshToken: signRefreshToken({ userId: tokenPayload.userId }),
     };
@@ -38,13 +47,19 @@ class AuthService {
       subRole: user.subRole,
       departmentId: user.departmentId.toString(),
       division: user.division || null,
+      semester: user.semester || null,
+      enrollmentNo: user.enrollmentNo || null,
       email: user.email,
     };
 
     return {
       user: {
         _id: user._id, name: user.name, email: user.email,
-        role: user.role, subRole: user.subRole, departmentId: user.departmentId
+        role: user.role, subRole: user.subRole,
+        departmentId: user.departmentId,
+        semester: user.semester,
+        division: user.division,
+        enrollmentNo: user.enrollmentNo,
       },
       accessToken: signAccessToken(tokenPayload),
       refreshToken: signRefreshToken({ userId: tokenPayload.userId }),
@@ -68,6 +83,8 @@ class AuthService {
       subRole: user.subRole,
       departmentId: user.departmentId.toString(),
       division: user.division || null,
+      semester: user.semester || null,
+      enrollmentNo: user.enrollmentNo || null,
       email: user.email,
     };
 

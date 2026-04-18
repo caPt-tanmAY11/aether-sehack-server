@@ -1,29 +1,29 @@
 import { Router } from 'express';
 import { eventController } from './event.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
-import { requireRoles, requireCommitteePosition } from '../middleware/rbac.middleware.js';
+import { requireRoles } from '../middleware/rbac.middleware.js';
 import { createEventSchema, eventApprovalSchema } from '../validators/event.validator.js';
 
 const router = Router();
 
-// Student (Committee Members) Submits an Event
+// Any authenticated student, council, or committee member can request an event
 router.post(
   '/',
-  requireCommitteePosition,
+  requireRoles('student', 'council', 'committee'),
   validate(createEventSchema),
   eventController.submitEvent
 );
 
-// Get all approved events (public to authenticated users)
+// Get all events (public to authenticated users)
 router.get(
   '/',
-  eventController.getAllApproved
+  eventController.getAllEvents
 );
 
 // Admins get their pending queue
 router.get(
   '/pending',
-  requireRoles('council', 'hod', 'dean', 'superadmin'),
+  requireRoles('council', 'hod', 'dean', 'superadmin', 'committee'),
   eventController.getPending
 );
 
@@ -35,10 +35,10 @@ router.patch(
   eventController.reviewEvent
 );
 
-// Filter requests raised strictly by the active student
+// Filter requests raised strictly by the active student/committee
 router.get(
   '/me',
-  requireRoles('student', 'council'),
+  requireRoles('student', 'council', 'committee'),
   eventController.myRequests
 );
 

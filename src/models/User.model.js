@@ -11,7 +11,7 @@ const UserSchema = new Schema(
     passwordHash: { type: String, required: true, select: false },
     role: {
       type: String,
-      enum: ['student', 'faculty', 'council', 'hod', 'dean', 'superadmin'],
+      enum: ['student', 'faculty', 'council', 'hod', 'dean', 'superadmin', 'committee'],
       required: true
     },
     subRole: {
@@ -32,6 +32,7 @@ const UserSchema = new Schema(
       default: null
     },
     departmentId: { type: Schema.Types.ObjectId, ref: 'Department', required: true },
+    semester: { type: Number },
     division: { type: String },
     enrollmentNo: { type: String },
     employeeId: { type: String },

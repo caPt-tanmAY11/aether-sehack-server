@@ -20,9 +20,19 @@ export const syllabusController = {
     } catch (err) { next(err); }
   },
 
+  async myTrackers(req, res, next) {
+    try {
+      const result = await syllabusService.getMyTrackers(req.user.userId);
+      res.status(200).json({ success: true, data: result });
+    } catch (err) { next(err); }
+  },
+
   async studentOverview(req, res, next) {
     try {
-      const { semester, academicYear } = req.query;
+      // Auto-inject semester from JWT token if not provided in query
+      const semester = req.query.semester || req.user.semester;
+      const currentYear = new Date().getFullYear();
+      const academicYear = req.query.academicYear || `${currentYear}-${currentYear + 1}`;
       const result = await syllabusService.getStudentProgressOverview(
         req.user.departmentId, semester, academicYear
       );

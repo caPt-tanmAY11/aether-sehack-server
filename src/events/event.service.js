@@ -48,6 +48,10 @@ class EventService {
     // Automatic 1-step algorithmic clash check
     const isClashing = await checkVenueClash(venue, startTime, endTime);
 
+    if (isClashing) {
+      throw { status: 409, message: `Validation Failed: Conflict detected. ${venue} is already booked during this time (either a class or another event). Please choose a different time or venue.` };
+    }
+
     const event = await EventRequest.create({
       requestedBy: user.userId,
       departmentId: user.departmentId,
@@ -58,7 +62,7 @@ class EventService {
       endTime,
       expectedAttendance,
       conflictChecked: true,
-      conflictResult: isClashing ? { msg: `Conflict found with academic timetable for ${venue}. Approval might be denied.` } : { msg: 'No conflict detected.' },
+      conflictResult: { msg: 'No conflict detected.' },
       currentStage: 'council', // Next up in chain
       chain: []
     });
@@ -162,8 +166,10 @@ class EventService {
     return EventRequest.find({ requestedBy: studentId }).sort({ createdAt: -1 });
   }
 
-  async getAllApproved() {
-    return EventRequest.find({ currentStage: 'approved' })
+  async getAllEvents() {
+    return EventRequest.find({
+      currentStage: { $in: ['approved', 'council', 'hod', 'dean'] }
+    })
       .populate('requestedBy', 'name')
       .sort({ startTime: 1 });
   }

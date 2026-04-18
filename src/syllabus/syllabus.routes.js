@@ -14,6 +14,13 @@ router.post(
   syllabusController.initTracker
 );
 
+// Faculty listing their own trackers
+router.get(
+  '/my-trackers',
+  requireRoles('faculty'),
+  syllabusController.myTrackers
+);
+
 // Faculty marking a topic as complete
 router.patch(
   '/:trackerId/topic',

@@ -24,4 +24,7 @@ router.put(
 );
 router.post('/push-token', authMiddleware, authController.registerPushToken);
 
+// Any authenticated user can list other users by role (for dropdowns)
+router.get('/users', authMiddleware, authController.listUsers);
+
 export { router as authRouter };

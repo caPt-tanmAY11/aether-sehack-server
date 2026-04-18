@@ -7,28 +7,33 @@ class SyllabusService {
    */
   async initializeSyllabus(facultyId, departmentId, payload) {
     const { subjectId, semester, academicYear, topics } = payload;
-    
-    // Check if sub exists
+
     const subject = await Subject.findById(subjectId);
     if (!subject || subject.departmentId.toString() !== departmentId) {
       throw { status: 404, message: 'Subject not found in your department' };
     }
 
-    const existing = await SyllabusProgress.findOne({
-      facultyId, subjectId, academicYear
-    });
-
+    const existing = await SyllabusProgress.findOne({ facultyId, subjectId, academicYear });
     if (existing) {
       throw { status: 409, message: 'Syllabus tracker already initialized for this academic year' };
+    }
+
+    // Use provided topics or fall back to subject's canonical syllabus
+    const resolvedTopics = (topics && topics.length > 0)
+      ? topics
+      : subject.syllabusTopics.map(t => ({ name: t.name, status: 'pending' }));
+
+    if (!resolvedTopics || resolvedTopics.length === 0) {
+      throw { status: 400, message: 'No topics provided and this subject has no default syllabus defined.' };
     }
 
     const tracker = await SyllabusProgress.create({
       subjectId: new mongoose.Types.ObjectId(subjectId),
       facultyId: new mongoose.Types.ObjectId(facultyId),
       departmentId: new mongoose.Types.ObjectId(departmentId),
-      semester,
+      semester: semester || subject.semester,
       academicYear,
-      topics
+      topics: resolvedTopics,
     });
 
     return tracker;
@@ -59,12 +64,33 @@ class SyllabusService {
   }
 
   /**
+   * Get all syllabus trackers owned by a faculty member.
+   */
+  async getMyTrackers(facultyId) {
+    return SyllabusProgress.find({ facultyId })
+      .populate('subjectId', 'name code')
+      .sort({ createdAt: -1 });
+  }
+
+  /**
    * Get progress for students
    */
   async getStudentProgressOverview(departmentId, semester, academicYear) {
-    const trackers = await SyllabusProgress.find({
-      departmentId, semester, academicYear
-    }).populate('subjectId', 'name code').populate('facultyId', 'name');
+    // Build query — try exact match first, then progressively relax
+    const baseQuery = { departmentId };
+    if (semester) baseQuery.semester = semester;
+    if (academicYear) baseQuery.academicYear = academicYear;
+
+    let trackers = await SyllabusProgress.find(baseQuery)
+      .populate('subjectId', 'name code')
+      .populate('facultyId', 'name');
+
+    // Fallback: if no results with semester+year, try just departmentId
+    if (trackers.length === 0) {
+      trackers = await SyllabusProgress.find({ departmentId })
+        .populate('subjectId', 'name code')
+        .populate('facultyId', 'name');
+    }
     
     return trackers;
   }

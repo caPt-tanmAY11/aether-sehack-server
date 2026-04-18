@@ -46,4 +46,32 @@ router.get(
   advisingController.getMySharedNotes
 );
 
+// Student submits an advising request to a faculty
+router.post(
+  '/request',
+  requireRoles('student'),
+  advisingController.createRequest
+);
+
+// Student views their own request history
+router.get(
+  '/my-requests',
+  requireRoles('student'),
+  advisingController.getMyRequests
+);
+
+// Faculty views incoming advising requests
+router.get(
+  '/incoming-requests',
+  requireRoles('faculty', 'hod', 'superadmin'),
+  advisingController.getIncomingRequests
+);
+
+// Faculty acknowledges / updates a request
+router.patch(
+  '/request/:requestId',
+  requireRoles('faculty', 'hod', 'superadmin'),
+  advisingController.updateRequest
+);
+
 export { router as advisingRouter };

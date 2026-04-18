@@ -22,10 +22,30 @@ export const clubController = {
     } catch (err) { next(err); }
   },
 
-  async join(req, res, next) {
+  async requestJoin(req, res, next) {
     try {
-      const club = await clubService.join(req.params.id, req.user.userId);
-      res.json({ success: true, message: 'Joined club successfully', data: { name: club.name, memberCount: club.members.filter(m => m.isActive).length } });
+      const result = await clubService.requestJoin(req.params.id, req.user.userId, req.body.message);
+      res.json({ success: true, message: 'Join request submitted — awaiting approval', data: result });
+    } catch (err) { next(err); }
+  },
+
+  async reviewJoinRequest(req, res, next) {
+    try {
+      const { decision } = req.body; // 'approved' | 'rejected'
+      if (!['approved', 'rejected'].includes(decision)) {
+        return res.status(400).json({ success: false, message: "decision must be 'approved' or 'rejected'" });
+      }
+      const result = await clubService.reviewJoinRequest(
+        req.params.id, req.params.requestId, req.user, decision
+      );
+      res.json({ success: true, message: `Request ${decision}`, data: result });
+    } catch (err) { next(err); }
+  },
+
+  async getPendingRequests(req, res, next) {
+    try {
+      const data = await clubService.getPendingRequestsForMyClubs(req.user);
+      res.json({ success: true, data });
     } catch (err) { next(err); }
   },
 
@@ -38,7 +58,7 @@ export const clubController = {
 
   async sendAlert(req, res, next) {
     try {
-      const result = await clubService.sendAlert(req.params.id, req.user.userId, req.body);
+      const result = await clubService.sendAlert(req.params.id, req.user, req.body);
       res.json({ success: true, message: `Alert sent to ${result.sent} member(s)`, data: result });
     } catch (err) { next(err); }
   },

@@ -3,7 +3,8 @@ import mongoose, { Schema } from 'mongoose';
 const AttendanceRecordSchema = new Schema({
   studentId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   status: { type: String, enum: ['present', 'absent', 'late'], required: true },
-}, { _id: false });
+  remarks: { type: String, default: '' },
+}, { _id: true });
 
 const AttendanceSchema = new Schema(
   {

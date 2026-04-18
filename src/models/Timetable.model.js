@@ -8,6 +8,8 @@ const TimetableSlotSchema = new Schema({
   },
   startTime: { type: String, required: true },
   endTime: { type: String, required: true },
+  // lecture = 1 hour, lab = 2 hours
+  slotType: { type: String, enum: ['lecture', 'lab'], default: 'lecture' },
   subjectId: { type: Schema.Types.ObjectId, ref: 'Subject', required: true },
   facultyId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   roomId: { type: Schema.Types.ObjectId, ref: 'Room', required: true },

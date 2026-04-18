@@ -1,4 +1,5 @@
 import { AdvisingNote } from '../models/AdvisingNote.model.js';
+import { AdvisingRequest } from '../models/AdvisingRequest.model.js';
 import { User } from '../shared.js';
 
 class AdvisingService {
@@ -73,6 +74,34 @@ class AdvisingService {
     })
       .populate('studentId', 'name email rollNumber')
       .sort({ followUpDate: 1 });
+  }
+
+  async createStudentRequest(studentId, { facultyId, message }) {
+    const faculty = await User.findById(facultyId);
+    if (!faculty || faculty.role !== 'faculty') throw { status: 404, message: 'Faculty not found' };
+    return AdvisingRequest.create({ studentId, facultyId, message });
+  }
+
+  async getStudentRequests(studentId) {
+    return AdvisingRequest.find({ studentId })
+      .populate('facultyId', 'name email')
+      .sort({ createdAt: -1 });
+  }
+
+  async getFacultyRequests(facultyId) {
+    return AdvisingRequest.find({ facultyId })
+      .populate('studentId', 'name email enrollmentNo semester division')
+      .sort({ createdAt: -1 });
+  }
+
+  async updateRequest(requestId, facultyId, { status, facultyReply }) {
+    const request = await AdvisingRequest.findById(requestId);
+    if (!request) throw { status: 404, message: 'Request not found' };
+    if (request.facultyId.toString() !== facultyId.toString()) throw { status: 403, message: 'Not authorized' };
+    if (status) request.status = status;
+    if (facultyReply) request.facultyReply = facultyReply;
+    await request.save();
+    return request;
   }
 }
 

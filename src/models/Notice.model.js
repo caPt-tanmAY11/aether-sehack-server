@@ -14,6 +14,9 @@ const NoticeSchema = new Schema({
   body:  { type: String, required: true, trim: true, maxLength: 5000 },
   priority: { type: String, enum: ['low', 'medium', 'high', 'urgent'], default: 'medium' },
 
+  // Optional: notice targeted to a specific faculty batch
+  batchId: { type: Schema.Types.ObjectId, ref: 'Batch' },
+
   // Expiry — after this date the notice is no longer shown by default
   expiresAt: { type: Date },
 

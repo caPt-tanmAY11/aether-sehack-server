@@ -8,6 +8,16 @@ const MembershipSchema = new Schema({
   isActive:  { type: Boolean, default: true }
 }, { _id: false });
 
+// Pending join request sub-document
+const JoinRequestSchema = new Schema({
+  userId:      { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  message:     { type: String, maxLength: 300, default: '' },
+  requestedAt: { type: Date, default: Date.now },
+  status:      { type: String, enum: ['pending', 'approved', 'rejected', 'waitlisted'], default: 'pending' },
+  reviewedBy:  { type: Schema.Types.ObjectId, ref: 'User' },
+  reviewedAt:  { type: Date },
+}, { _id: true });
+
 const ClubSchema = new Schema({
   name:         { type: String, required: true, unique: true, trim: true },
   description:  { type: String, required: true, trim: true, maxLength: 2000 },
@@ -23,8 +33,11 @@ const ClubSchema = new Schema({
   // Department the club is primarily under (cross-dept clubs use the founder's dept)
   departmentId: { type: Schema.Types.ObjectId, ref: 'Department', required: true },
 
-  // Members
+  // Active members
   members: [MembershipSchema],
+
+  // Pending join requests awaiting president/advisor review
+  joinRequests: [JoinRequestSchema],
 
   // Social / contact
   logoUrl:   { type: String },

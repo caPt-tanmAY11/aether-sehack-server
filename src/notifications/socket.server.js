@@ -9,15 +9,17 @@ let io = null;
 const userSockets = new Map();
 
 export function initSocketServer(httpServer) {
-  const pubClient = new Redis(process.env.REDIS_URI || 'redis://127.0.0.1:6379');
+  const pubClient = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
   const subClient = pubClient.duplicate();
 
   pubClient.on('error', (err) => console.error('[Redis Pub] Error:', err.message));
   subClient.on('error', (err) => console.error('[Redis Sub] Error:', err.message));
 
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [];
+
   io = new Server(httpServer, {
     cors: {
-      origin: '*', // Tighten per env in production
+      origin: allowedOrigins.length ? allowedOrigins : false,
       methods: ['GET', 'POST']
     },
     adapter: createAdapter(pubClient, subClient)

@@ -26,4 +26,16 @@ router.get(
   attendanceController.myReport
 );
 
+router.get(
+  '/me/detailed',
+  requireRoles('student'),
+  attendanceController.myDetailedReport
+);
+
+router.get(
+  '/session',
+  requireRoles('faculty', 'superadmin', 'hod', 'dean'),
+  attendanceController.getSession
+);
+
 export { router as attendanceRouter };

@@ -50,8 +50,8 @@ export const timetableController = {
         const division = req.user.division;
         if (!division) throw { status: 400, message: 'No division assigned to your account. Contact admin.' };
 
-        // Default to semester 3 and current academic year if not provided as query params
-        const semester = req.query.semester ? Number(req.query.semester) : 3;  // ⚠️ defaulted to sem 3
+        // Default to semester assigned to user if not provided as query params
+        const semester = req.query.semester ? Number(req.query.semester) : (req.user.semester || 3);
         const year = new Date().getFullYear();
         const academicYear = req.query.academicYear || `${year}-${year + 1}`;  // e.g. 2026-2027
 
@@ -76,7 +76,7 @@ export const timetableController = {
     try {
       const division = req.user.division;
       if (!division) throw { status: 400, message: 'No division assigned. Contact admin.' };
-      const semester = req.query.semester ? Number(req.query.semester) : 3;
+      const semester = req.query.semester ? Number(req.query.semester) : (req.user.semester || 3);
       const year = new Date().getFullYear();
       const academicYear = req.query.academicYear || `${year}-${year + 1}`;
       const data = await timetableService.getNextClass(

@@ -46,10 +46,15 @@ class NoticeService {
       }
     }
 
-    return Notice.find(query)
+    const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 };
+    const notices = await Notice.find(query)
       .populate('publishedBy', 'name role subRole')
-      .sort({ priority: -1, createdAt: -1 })
+      .sort({ createdAt: -1 })
       .limit(50);
+
+    return notices.sort((a, b) =>
+      (priorityOrder[b.priority] ?? 0) - (priorityOrder[a.priority] ?? 0)
+    );
   }
 
   /**

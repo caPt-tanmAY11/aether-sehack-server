@@ -1,5 +1,10 @@
 import mongoose, { Schema } from 'mongoose';
 
+const SyllabusTopicSchema = new Schema({
+  name: { type: String, required: true, trim: true },
+  unit: { type: Number, required: true },
+}, { _id: true });
+
 const SubjectSchema = new Schema(
   {
     name: { type: String, required: true },
@@ -8,6 +13,8 @@ const SubjectSchema = new Schema(
     credits: { type: Number, required: true, min: 1, max: 6 },
     semester: { type: Number, required: true, min: 1, max: 8 },
     syllabusPDF: { type: String },
+    // Canonical list of topics for this subject — used to auto-init syllabus trackers
+    syllabusTopics: [SyllabusTopicSchema],
   },
   { timestamps: true }
 );
