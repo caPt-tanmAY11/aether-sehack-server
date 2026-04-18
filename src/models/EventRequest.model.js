@@ -17,6 +17,8 @@ const EventRequestSchema = new Schema(
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     expectedAttendance: { type: Number, default: 0 },
+    templateType: { type: String, enum: ['hackathon', 'case_study', 'plain'], default: 'plain' },
+    resources: [{ type: String }],
     conflictChecked: { type: Boolean, default: false },
     conflictResult: { type: Schema.Types.Mixed },
     chain: [ApprovalStepSchema],

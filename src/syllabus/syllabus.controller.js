@@ -38,5 +38,18 @@ export const syllabusController = {
       );
       res.status(200).json({ success: true, data: result });
     } catch (err) { next(err); }
+  },
+
+  async getCoordinationNodes(req, res, next) {
+    try {
+      const { SyllabusProgress } = await import('../models/SyllabusProgress.model.js');
+      const { subjectId } = req.params;
+      
+      const trackers = await SyllabusProgress.find({ subjectId })
+        .populate('facultyId', 'name email role')
+        .sort({ completionPercent: -1 });
+        
+      res.status(200).json({ success: true, data: trackers });
+    } catch (err) { next(err); }
   }
 };

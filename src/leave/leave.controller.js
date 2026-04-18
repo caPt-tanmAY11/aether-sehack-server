@@ -65,4 +65,34 @@ export const leaveController = {
       res.json({ success: true, data: leave });
     } catch (err) { next(err); }
   },
+
+  async getFacultyLeavePdf(req, res, next) {
+    try {
+      const { LeaveRequest } = await import('../models/LeaveRequest.model.js');
+      const { User } = await import('../shared.js');
+      const { generateLeaveCertificate } = await import('../utils/pdf.util.js');
+      
+      const leave = await LeaveRequest.findById(req.params.id);
+      if (!leave) return res.status(404).json({ success: false, message: 'Leave not found' });
+      
+      const reqUser = await User.findById(leave.facultyId);
+      const pdfBase64 = await generateLeaveCertificate(leave, reqUser || { name: 'Unknown' }, 'faculty');
+      res.json({ success: true, data: pdfBase64 });
+    } catch (err) { next(err); }
+  },
+
+  async getStudentLeavePdf(req, res, next) {
+    try {
+      const { StudentLeave } = await import('../models/StudentLeave.model.js');
+      const { User } = await import('../shared.js');
+      const { generateLeaveCertificate } = await import('../utils/pdf.util.js');
+      
+      const leave = await StudentLeave.findById(req.params.id);
+      if (!leave) return res.status(404).json({ success: false, message: 'Leave not found' });
+      
+      const reqUser = await User.findById(leave.studentId);
+      const pdfBase64 = await generateLeaveCertificate(leave, reqUser || { name: 'Unknown' }, 'student');
+      res.json({ success: true, data: pdfBase64 });
+    } catch (err) { next(err); }
+  }
 };

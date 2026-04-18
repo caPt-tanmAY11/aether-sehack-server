@@ -36,4 +36,11 @@ router.get(
   syllabusController.studentOverview
 );
 
+// Faculty coordination nodes (viewing other faculties teaching same subject)
+router.get(
+  '/coordination/:subjectId',
+  requireRoles('faculty', 'hod', 'dean'),
+  syllabusController.getCoordinationNodes
+);
+
 export { router as syllabusRouter };

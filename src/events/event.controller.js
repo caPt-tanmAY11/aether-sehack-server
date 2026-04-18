@@ -37,5 +37,19 @@ export const eventController = {
     } catch (err) {
       next(err);
     }
+  },
+
+  async getEventPdf(req, res, next) {
+    try {
+      const { EventRequest, User } = await import('../shared.js');
+      const event = await EventRequest.findById(req.params.id);
+      if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+      
+      const reqUser = await User.findById(event.requestedBy);
+      const { generateEventCertificate } = await import('../utils/pdf.util.js');
+      
+      const pdfBase64 = await generateEventCertificate(event, reqUser || { name: 'Unknown' });
+      res.json({ success: true, data: pdfBase64 });
+    } catch(err) { next(err); }
   }
 };

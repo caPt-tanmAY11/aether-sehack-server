@@ -42,4 +42,10 @@ router.get(
   eventController.myRequests
 );
 
+// Get the extended PDF form for any event
+router.get(
+  '/:id/pdf',
+  eventController.getEventPdf
+);
+
 export { router as eventRouter };

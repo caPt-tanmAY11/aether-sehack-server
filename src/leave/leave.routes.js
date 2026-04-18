@@ -67,4 +67,16 @@ router.patch(
   leaveController.studentReview
 );
 
+// Get Faculty Leave PDF
+router.get(
+  '/faculty/:id/pdf',
+  leaveController.getFacultyLeavePdf
+);
+
+// Get Student Leave PDF
+router.get(
+  '/student/:id/pdf',
+  leaveController.getStudentLeavePdf
+);
+
 export { router as leaveRouter };

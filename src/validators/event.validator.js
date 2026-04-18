@@ -7,6 +7,7 @@ export const createEventSchema = z.object({
   startTime: z.coerce.date(),
   endTime: z.coerce.date(),
   expectedAttendance: z.coerce.number().min(1).default(50),
+  templateType: z.enum(['hackathon', 'case_study', 'plain']).default('plain'),
 });
 
 export const eventApprovalSchema = z.object({

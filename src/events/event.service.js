@@ -43,13 +43,25 @@ async function checkVenueClash(venueName, startTime, endTime) {
 
 class EventService {
   async createRequest(user, data) {
-    const { title, description, venue, startTime, endTime, expectedAttendance } = data;
+    const { title, description, venue, startTime, endTime, expectedAttendance, templateType } = data;
     
     // Automatic 1-step algorithmic clash check
     const isClashing = await checkVenueClash(venue, startTime, endTime);
 
     if (isClashing) {
       throw { status: 409, message: `Validation Failed: Conflict detected. ${venue} is already booked during this time (either a class or another event). Please choose a different time or venue.` };
+    }
+
+    let resources = ['AC', 'Wi-Fi', 'Smart Board'];
+    if (templateType === 'hackathon') {
+      resources.push('All IT Labs', 'Guard Security');
+      // Dispatch mock notifications
+      console.log('[Notification] Sent IT Dept Permission Letter to it@spit.ac.in');
+      console.log('[Notification] Sent Guard CC Copy to security@spit.ac.in');
+    } else if (templateType === 'case_study') {
+      resources.push('4 Classrooms', 'Department Office');
+    } else {
+      resources.push('1 Classroom');
     }
 
     const event = await EventRequest.create({
@@ -61,6 +73,8 @@ class EventService {
       startTime,
       endTime,
       expectedAttendance,
+      templateType,
+      resources,
       conflictChecked: true,
       conflictResult: { msg: 'No conflict detected.' },
       currentStage: 'council', // Next up in chain
