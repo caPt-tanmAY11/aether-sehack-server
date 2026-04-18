@@ -7,35 +7,35 @@ const router = Router();
 // Create a new advising note — Faculty only
 router.post(
   '/',
-  requireRoles('faculty', 'hod'),
+  requireRoles('faculty', 'hod', 'superadmin'),
   advisingController.createNote
 );
 
 // Get all notes this faculty member has written
 router.get(
   '/my-notes',
-  requireRoles('faculty', 'hod'),
+  requireRoles('faculty', 'hod', 'superadmin'),
   advisingController.getAllMyNotes
 );
 
 // Get pending follow-ups for this faculty member
 router.get(
   '/follow-ups',
-  requireRoles('faculty', 'hod'),
+  requireRoles('faculty', 'hod', 'superadmin'),
   advisingController.getPendingFollowUps
 );
 
 // Mark a specific follow-up note as done
 router.patch(
   '/:noteId/follow-up-done',
-  requireRoles('faculty', 'hod'),
+  requireRoles('faculty', 'hod', 'superadmin'),
   advisingController.markFollowUpDone
 );
 
 // Get all notes for a specific student (faculty author's view)
 router.get(
   '/student/:studentId',
-  requireRoles('faculty', 'hod'),
+  requireRoles('faculty', 'hod', 'superadmin'),
   advisingController.getNotesForStudent
 );
 

@@ -23,14 +23,14 @@ router.get(
 // Admins get their pending queue
 router.get(
   '/pending',
-  requireRoles('council', 'hod', 'dean'),
+  requireRoles('council', 'hod', 'dean', 'superadmin'),
   eventController.getPending
 );
 
 // Admins reviewing an event (Approve/Reject)
 router.patch(
   '/:id/review',
-  requireRoles('council', 'hod', 'dean'),
+  requireRoles('council', 'hod', 'dean', 'superadmin'),
   validate(eventApprovalSchema),
   eventController.reviewEvent
 );
@@ -38,7 +38,7 @@ router.patch(
 // Filter requests raised strictly by the active student
 router.get(
   '/me',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   eventController.myRequests
 );
 

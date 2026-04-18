@@ -21,21 +21,21 @@ router.get(
 // HOD views all pending leaves in their department
 router.get(
   '/pending',
-  requireRoles('hod'),
+  requireRoles('hod', 'superadmin'),
   leaveController.getPending
 );
 
 // HOD or Dean views all leaves for their department (with optional ?status= filter)
 router.get(
   '/department',
-  requireRoles('hod', 'dean'),
+  requireRoles('hod', 'dean', 'superadmin'),
   leaveController.getDeptLeaves
 );
 
 // HOD approves or rejects a leave request
 router.patch(
   '/:id/review',
-  requireRoles('hod'),
+  requireRoles('hod', 'superadmin'),
   leaveController.review
 );
 

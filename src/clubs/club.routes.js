@@ -7,19 +7,19 @@ const router = Router();
 // Anyone authenticated can list and view clubs
 router.get(
   '/',
-  requireRoles('student', 'faculty', 'hod', 'dean', 'council'),
+  requireRoles('student', 'faculty', 'hod', 'dean', 'council', 'superadmin'),
   clubController.list
 );
 
 router.get(
   '/my',
-  requireRoles('student', 'faculty', 'council'),
+  requireRoles('student', 'faculty', 'council', 'superadmin'),
   clubController.getMyClubs
 );
 
 router.get(
   '/:id',
-  requireRoles('student', 'faculty', 'hod', 'dean', 'council'),
+  requireRoles('student', 'faculty', 'hod', 'dean', 'council', 'superadmin'),
   clubController.getById
 );
 

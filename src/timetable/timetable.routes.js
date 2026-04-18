@@ -17,14 +17,14 @@ router.post(
 // HOD View pending timetables
 router.get(
   '/pending',
-  requireRoles('hod'),
+  requireRoles('hod', 'superadmin'),
   timetableController.getPending
 );
 
 // HOD Approve/Reject Timetable
 router.patch(
   '/:id/review',
-  requireRoles('hod'),
+  requireRoles('hod', 'superadmin'),
   validate(approvalSchema),
   timetableController.review
 );
@@ -39,7 +39,7 @@ router.get(
 // Get all approved timetables for the Dept (HOD/Dean)
 router.get(
   '/department',
-  requireRoles('hod', 'dean'),
+  requireRoles('hod', 'dean', 'superadmin'),
   timetableController.getDepartmentTimetables
 );
 
@@ -53,14 +53,14 @@ router.get(
 // Check Room Availability
 router.get(
   '/rooms/:id/availability',
-  requireRoles('student', 'faculty', 'hod', 'dean', 'council'),
+  requireRoles('student', 'faculty', 'hod', 'dean', 'council', 'superadmin'),
   timetableController.getRoomAvailability
 );
 
 // Get all rooms with current availability (for VacantRoomsScreen)
 router.get(
   '/vacant',
-  requireRoles('student', 'faculty', 'hod', 'dean', 'council'),
+  requireRoles('student', 'faculty', 'hod', 'dean', 'council', 'superadmin'),
   timetableController.getVacantRooms
 );
 

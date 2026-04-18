@@ -32,9 +32,14 @@ export function requireTimetableCoord(req, res, next) {
 
 // Require committee position sub-role (student event requests)
 export function requireCommitteePosition(req, res, next) {
-  if (!req.user || req.user.role !== 'student') {
-    return res.status(403).json({ success: false, message: 'Students only' });
+  if (!req.user || (req.user.role !== 'student' && req.user.role !== 'council')) {
+    return res.status(403).json({ success: false, message: 'Students or Council only' });
   }
+
+  if (req.user.role === 'council') {
+    return next();
+  }
+
   if (!req.user.subRole || !EVENT_REQUEST_SUBROLES.includes(req.user.subRole)) {
     return res.status(403).json({
       success: false,

@@ -24,21 +24,21 @@ router.get(
 // Admins fetching all campus issues
 router.get(
   '/all',
-  requireRoles('hod', 'dean'),
+  requireRoles('hod', 'dean', 'superadmin'),
   issueController.fetchAll
 );
 
 // Leadership fetching heatmap data
 router.get(
   '/heatmap',
-  requireRoles('hod', 'dean'),
+  requireRoles('hod', 'dean', 'superadmin'),
   issueController.fetchHeatmap
 );
 
 // Admin processing & resolving an issue
 router.patch(
   '/:id',
-  requireRoles('hod', 'dean'),
+  requireRoles('hod', 'dean', 'superadmin'),
   validate(updateIssueSchema),
   issueController.patchIssue
 );
