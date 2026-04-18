@@ -13,6 +13,8 @@ import { leaveRouter } from '../leave/leave.routes.js';
 import { clubRouter } from '../clubs/club.routes.js';
 import { batchRouter } from '../batch/batch.routes.js';
 import { chatRouter } from '../chat/chat.routes.js';
+import { pluginRouter } from '../plugins/plugin.routes.js';
+import { paymentRouter } from '../payments/payment.routes.js';
 
 const router = Router();
 
@@ -31,5 +33,7 @@ router.use('/leave', leaveRouter);
 router.use('/clubs', clubRouter);
 router.use('/batches', batchRouter);
 router.use('/chat', chatRouter);
+router.use('/plugins', pluginRouter);
+router.use('/payments', paymentRouter);
 
 export { router as apiRouter };

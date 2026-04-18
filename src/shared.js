@@ -17,6 +17,8 @@ export * from './models/ChatMessage.model.js';
 export * from './models/Notice.model.js';
 export * from './models/Club.model.js';
 export * from './models/LeaveRequest.model.js';
+export * from './models/Plugin.model.js';
+export * from './models/Due.model.js';
 export * from './utils/db.js';
 export * from './utils/jwt.js';
 export * from './utils/redis.js';
