@@ -3,6 +3,8 @@ import { ChatbotLog, Issue } from '../shared.js';
 import { notificationService } from '../notifications/notification.service.js';
 import { attendanceService } from '../attendance/attendance.service.js';
 import { syllabusService } from '../syllabus/syllabus.service.js';
+import { paymentService } from '../payments/payment.service.js';
+import { aiConflictService } from '../ai/aiConflict.service.js';
 
 // ─── Tool Definitions (Gemini Function Calling) ────────────────────────────
 const tools = [
@@ -36,9 +38,60 @@ const tools = [
           },
           required: ['to', 'summary']
         }
+      },
+      {
+        name: 'get_pending_dues',
+        description: 'Check if the student has any unpaid library fines, canteen bills, or lab dues.',
+        parameters: { type: 'OBJECT', properties: {}, required: [] }
+      },
+      {
+        name: 'predict_event_approval',
+        description: 'Predict if an event booking will be approved and check for venue conflicts.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            venue: { type: 'STRING', description: 'Name of the venue' },
+            startTime: { type: 'STRING', description: 'ISO start time string' },
+            endTime: { type: 'STRING', description: 'ISO end time string' }
+          },
+          required: ['venue', 'startTime', 'endTime']
+        }
+      },
+      {
+        name: 'search_knowledge_base',
+        description: 'Search the campus handbook for policies on leaves, club joining, and academic rules.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            query: { type: 'STRING', description: 'The topic to search for' }
+          },
+          required: ['query']
+        }
+      },
+      {
+        name: 'trigger_ui_action',
+        description: 'Provide an interactive button to the user to perform an action or navigate to a screen.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            type: { type: 'STRING', enum: ['navigate', 'action'] },
+            screen: { type: 'STRING', description: 'Screen name to navigate to (e.g., MyDues, LeaveApplication, Timetable)' },
+            label: { type: 'STRING', description: 'The text to show on the button' },
+            params: { type: 'OBJECT', description: 'Optional params for navigation' }
+          },
+          required: ['type', 'screen', 'label']
+        }
       }
     ]
   }
+];
+
+// ─── Simple RAG Knowledge Base ──────────────────────────────────────────────
+const CAMPUS_HANDBOOK = [
+  { topic: 'leaves', content: 'Students must apply for leave via the Aether app. Medical leaves for >3 days require a certificate. HOD is the final authority for department leaves.' },
+  { topic: 'clubs', content: 'To join a club, navigate to the Marketplace, select the club, and click "Request to Join". You must provide a short pitch. Presidents approve requests.' },
+  { topic: 'attendance', content: 'Minimum 75% attendance is required per subject to be eligible for end-semester exams. Dues must be cleared before hall tickets are issued.' },
+  { topic: 'canteen', content: 'Canteen bills can be paid online via the Aether wallet/Razorpay. Unpaid bills will lead to a block on library services.' },
 ];
 
 // ─── Tool Executor ──────────────────────────────────────────────────────────
@@ -76,6 +129,26 @@ async function executeTool(toolName, args, user) {
       });
       return JSON.stringify({ success: true, escalatedTo: args.to });
     }
+    case 'get_pending_dues': {
+      const data = await paymentService.getTotalOutstanding(user.userId);
+      return JSON.stringify(data);
+    }
+    case 'predict_event_approval': {
+      const suggestions = await aiConflictService.suggestAlternativeSlots(args.venue, args.startTime, args.endTime);
+      return JSON.stringify({
+        hasConflict: suggestions && suggestions.length > 0,
+        suggestions,
+        note: 'High lead time increases approval chance.'
+      });
+    }
+    case 'search_knowledge_base': {
+      const results = CAMPUS_HANDBOOK.filter(h => h.topic.includes(args.query.toLowerCase()) || h.content.toLowerCase().includes(args.query.toLowerCase()));
+      return JSON.stringify(results.length ? results : { message: 'No specific rule found in handbook.' });
+    }
+    case 'trigger_ui_action': {
+      // This is a "virtual" tool that we intercept in the chat loop
+      return JSON.stringify({ status: 'ui_action_queued', ...args });
+    }
     default:
       return JSON.stringify({ error: 'Unknown tool' });
   }
@@ -83,12 +156,15 @@ async function executeTool(toolName, args, user) {
 
 // ─── Gemini Setup ──────────────────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are Aether, the intelligent campus AI assistant.
-You have access to real campus data tools. Use them when asked about personal data.
-- Use get_my_attendance for questions about attendance, absences, percentage.
-- Use get_syllabus_overview for questions about syllabus, topics covered, progress.
-- Use escalate_issue for safety hazards, harassment, or urgent facility emergencies.
-- For general campus info (policies, timings), answer from your knowledge.
-- Be concise and friendly. Present tool data clearly to the student.`;
+You have access to real campus data tools. Use them when asked about personal data or campus procedures.
+- Use get_my_attendance for questions about attendance.
+- Use get_syllabus_overview for syllabus progress.
+- Use get_pending_dues for library fines, canteen bills, or payment status.
+- Use predict_event_approval for checking if a venue is free for an event.
+- Use search_knowledge_base for "how-to" questions (e.g., joining clubs, leave rules).
+- Use trigger_ui_action to help the user navigate to a relevant screen (e.g., screen="MyDues" if they have dues).
+- Use escalate_issue for safety or facility emergencies.
+- Be concise, friendly, and helpful. Always present tool results in a human-friendly way.`;
 
 let genAI = null;
 let model = null;
@@ -136,6 +212,7 @@ class ChatbotService {
     let finalText = '';
     let escalated = false;
     let escalatedTo = null;
+    let uiAction = null;
 
     // Agentic loop — keep going until no more function calls
     while (true) {
@@ -152,7 +229,14 @@ class ChatbotService {
         functionCalls.map(async part => {
           const { name, args } = part.functionCall;
           if (name === 'escalate_issue') { escalated = true; escalatedTo = args.to; }
+          
           const result = await executeTool(name, args, user);
+          
+          // If the AI called trigger_ui_action, capture it for the final response
+          if (name === 'trigger_ui_action') {
+            uiAction = { type: args.type, screen: args.screen, label: args.label, params: args.params };
+          }
+          
           return { functionResponse: { name, response: { result } } };
         })
       );
@@ -170,7 +254,14 @@ class ChatbotService {
       escalatedTo: escalatedTo || undefined
     });
 
-    return { response: finalText, classification, escalated, escalatedTo, logId: log._id };
+    return { 
+      response: finalText, 
+      classification, 
+      escalated, 
+      escalatedTo, 
+      uiAction, 
+      logId: log._id 
+    };
   }
 
   async getHistory(userId) {

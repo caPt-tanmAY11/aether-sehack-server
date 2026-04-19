@@ -41,6 +41,21 @@ async function checkVenueClash(venueName, startTime, endTime) {
   return false;
 }
 
+function calculateApprovalProbability(leadTimeDays, venueContentionCount, clubHistory) {
+  let score = 50; // Base 50%
+  
+  // Lead time: +2% for each day advance, up to 14 days (+28%)
+  score += Math.min(leadTimeDays * 2, 28);
+  
+  // Venue Contention: -5% for each other event in the same week
+  score -= (venueContentionCount * 5);
+  
+  // Historical Success: assume 80% for now (mock logic)
+  score += 10;
+  
+  return Math.min(Math.max(score, 5), 99); // Clamp 5-99%
+}
+
 class EventService {
   async createRequest(user, data) {
     const { title, description, venue, startTime, endTime, expectedAttendance, templateType } = data;
@@ -49,7 +64,22 @@ class EventService {
     const isClashing = await checkVenueClash(venue, startTime, endTime);
 
     if (isClashing) {
-      throw { status: 409, message: `Validation Failed: Conflict detected. ${venue} is already booked during this time (either a class or another event). Please choose a different time or venue.` };
+      let suggestions = [];
+      try {
+        const { aiConflictService } = await import('../ai/aiConflict.service.js');
+        suggestions = await aiConflictService.suggestAlternativeSlots(venue, startTime, endTime);
+      } catch (aiErr) {
+        console.error('[AI Conflict Suggestion Failed]', aiErr);
+      }
+
+      throw { 
+        status: 409, 
+        message: `Validation Failed: Conflict detected. ${venue} is already booked during this time.`,
+        data: {
+          conflict: true,
+          suggestions: suggestions || []
+        }
+      };
     }
 
     let resources = ['AC', 'Wi-Fi', 'Smart Board'];
@@ -64,6 +94,9 @@ class EventService {
       resources.push('1 Classroom');
     }
 
+    const leadTimeDays = Math.floor((new Date(startTime) - new Date()) / (1000 * 60 * 60 * 24));
+    const probability = calculateApprovalProbability(leadTimeDays, 0, null);
+
     const event = await EventRequest.create({
       requestedBy: user.userId,
       departmentId: user.departmentId,
@@ -76,7 +109,10 @@ class EventService {
       templateType,
       resources,
       conflictChecked: true,
-      conflictResult: { msg: 'No conflict detected.' },
+      conflictResult: { 
+        msg: 'No conflict detected.',
+        probability: probability 
+      },
       currentStage: 'council', // Next up in chain
       chain: []
     });

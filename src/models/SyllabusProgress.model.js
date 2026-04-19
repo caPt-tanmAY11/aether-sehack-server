@@ -34,4 +34,22 @@ SyllabusProgressSchema.pre('save', function(next) {
 SyllabusProgressSchema.index({ subjectId: 1, facultyId: 1, academicYear: 1 }, { unique: true });
 SyllabusProgressSchema.index({ departmentId: 1, academicYear: 1 });
 
+// Real-time synchronization hook
+SyllabusProgressSchema.post('save', async function(doc) {
+  try {
+    const { getIO } = await import('../notifications/socket.server.js');
+    const io = getIO();
+    if (io) {
+      // Emit to a room specific to the subject so all students in that course see it
+      io.to(`course:${doc.subjectId.toString()}`).emit('syllabus_updated', {
+        subjectId: doc.subjectId,
+        completionPercent: doc.completionPercent,
+        lastUpdated: doc.lastUpdated
+      });
+    }
+  } catch (err) {
+    console.error('[Syllabus Hook Error]', err);
+  }
+});
+
 export const SyllabusProgress = mongoose.model('SyllabusProgress', SyllabusProgressSchema);

@@ -32,4 +32,21 @@ AttendanceSchema.index(
 AttendanceSchema.index({ departmentId: 1, date: 1 });
 AttendanceSchema.index({ 'records.studentId': 1, subjectId: 1 });
 
+// Real-time synchronization hook
+AttendanceSchema.post('save', async function(doc) {
+  try {
+    const { pushToUser } = await import('../notifications/socket.server.js');
+    doc.records.forEach(record => {
+      pushToUser(record.studentId.toString(), 'attendance_updated', {
+        attendanceId: doc._id,
+        date: doc.date,
+        subjectId: doc.subjectId,
+        status: record.status
+      });
+    });
+  } catch (err) {
+    console.error('[Attendance Hook Error]', err);
+  }
+});
+
 export const Attendance = mongoose.model('Attendance', AttendanceSchema);

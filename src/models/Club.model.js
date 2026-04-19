@@ -51,4 +51,23 @@ ClubSchema.index({ category: 1 });
 ClubSchema.index({ departmentId: 1 });
 ClubSchema.index({ 'members.userId': 1 });
 
+// Real-time synchronization hook
+ClubSchema.post('save', async function(doc) {
+  try {
+    const { pushToUser } = await import('../notifications/socket.server.js');
+    // We notify all pending/reviewed users whose status might have changed.
+    // In a real app, you might want to track which index changed, 
+    // but for a hackathon, notifying the student of their current request status is fine.
+    doc.joinRequests.forEach(req => {
+      pushToUser(req.userId.toString(), 'club_request_updated', {
+        clubId: doc._id,
+        clubName: doc.name,
+        status: req.status
+      });
+    });
+  } catch (err) {
+    console.error('[Club Hook Error]', err);
+  }
+});
+
 export const Club = mongoose.model('Club', ClubSchema);
