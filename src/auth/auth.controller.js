@@ -54,7 +54,13 @@ export const authController = {
     try {
       const { role } = req.query;
       const filter = {};
-      if (role) filter.role = role;
+      if (role) {
+        if (role.includes(',')) {
+          filter.role = { $in: role.split(',') };
+        } else {
+          filter.role = role;
+        }
+      }
       const users = await User.find(filter)
         .select('name email role departmentId enrollmentNo semester division')
         .populate('departmentId', 'name code')

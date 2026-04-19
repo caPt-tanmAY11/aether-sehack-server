@@ -78,7 +78,9 @@ class AdvisingService {
 
   async createStudentRequest(studentId, { facultyId, message }) {
     const faculty = await User.findById(facultyId);
-    if (!faculty || faculty.role !== 'faculty') throw { status: 404, message: 'Faculty not found' };
+    if (!faculty || !['faculty', 'hod', 'dean', 'superadmin'].includes(faculty.role)) {
+      throw { status: 404, message: 'Faculty not found or invalid role' };
+    }
     return AdvisingRequest.create({ studentId, facultyId, message });
   }
 

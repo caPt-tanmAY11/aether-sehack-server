@@ -32,7 +32,7 @@ router.patch(
 // Get My Timetable (Student or Faculty)
 router.get(
   '/me',
-  requireRoles('student', 'faculty'),
+  requireRoles('student', 'council', 'faculty'),
   timetableController.getMyTimetable
 );
 
@@ -53,7 +53,7 @@ router.get(
 // Get Next Class for Student
 router.get(
   '/next-class',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   timetableController.getNextClass
 );
 

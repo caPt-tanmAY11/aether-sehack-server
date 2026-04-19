@@ -8,6 +8,22 @@ export const advisingController = {
     } catch (err) { next(err); }
   },
 
+  async createBatchNote(req, res, next) {
+    try {
+      const { division, noteText, category, followUpDate, sharedWithStudent } = req.body;
+      const User = (await import('../models/User.model.js')).User;
+      const students = await User.find({ role: 'student', division, departmentId: req.user.departmentId });
+      
+      const notes = [];
+      for (const student of students) {
+         notes.push(await advisingService.createNote(req.user.userId, {
+            studentId: student._id, noteText, category, followUpDate, sharedWithStudent
+         }));
+      }
+      res.status(201).json({ success: true, message: 'Batch notes created', count: notes.length });
+    } catch (err) { next(err); }
+  },
+
   async getNotesForStudent(req, res, next) {
     try {
       const notes = await advisingService.getNotesForStudent(req.user.userId, req.params.studentId);

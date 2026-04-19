@@ -45,7 +45,7 @@ export const timetableController = {
   async getMyTimetable(req, res, next) {
     try {
       let data;
-      if (req.user.role === 'student') {
+      if (req.user.role === 'student' || req.user.role === 'council') {
         // division is now in the JWT — no DB lookup needed
         const division = req.user.division;
         if (!division) throw { status: 400, message: 'No division assigned to your account. Contact admin.' };

@@ -42,14 +42,14 @@ router.patch(
 // Student applies for leave (directed to faculty)
 router.post(
   '/student',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   leaveController.studentApply
 );
 
 // Student views their own leave history
 router.get(
   '/student/my',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   leaveController.studentMyLeaves
 );
 

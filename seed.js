@@ -309,14 +309,13 @@ async function seed() {
   console.log('🌱 Aether Full Database Seed v4');
   await connectDB(process.env.MONGODB_URI);
 
-  console.log('🧹 Clearing existing data...');
-  await Promise.all([
-    Department.deleteMany({}), User.deleteMany({}), Subject.deleteMany({}),
-    Room.deleteMany({}), Timetable.deleteMany({}), EventRequest.deleteMany({}),
-    Issue.deleteMany({}), Notification.deleteMany({}), SyllabusProgress.deleteMany({}),
-    ChatbotLog.deleteMany({}), LeaveRequest.deleteMany({}),
-    Club.deleteMany({}), AdvisingNote.deleteMany({}), Notice.deleteMany({}), Batch.deleteMany({})
-  ]);
+  console.log('🧹 Clearing existing data & indexes...');
+  const models = [
+    Department, User, Subject, Room, Timetable, EventRequest,
+    Issue, Notification, SyllabusProgress, ChatbotLog, LeaveRequest,
+    Club, AdvisingNote, Notice, Batch
+  ];
+  await Promise.all(models.map(m => m.collection.drop().catch(() => {})));
 
   // ── Departments ──────────────────────────────────────────────────────────
   const deptDocs = {};
@@ -446,7 +445,9 @@ async function seed() {
   for (const c of COUNCIL_MEMBERS) {
     const m = await User.create({
       name: c.name, email: c.email, passwordHash: DEFAULT_PASSWORD,
-      role: 'council', subRole: c.subRole, departmentId: deptDocs[c.dept]._id
+      role: 'council', subRole: c.subRole, departmentId: deptDocs[c.dept]._id,
+      division: 'A', semester: 3,
+      enrollmentNo: `COUNCIL${c.dept}${2024}${Math.floor(Math.random() * 900) + 100}`
     });
     allCouncil.push(m);
   }

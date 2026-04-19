@@ -8,7 +8,7 @@ const router = Router();
 
 router.post(
   '/mark',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   validate(markAttendanceSchema),
   attendanceController.selfMark
 );
@@ -22,13 +22,13 @@ router.patch(
 
 router.get(
   '/me/report',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   attendanceController.myReport
 );
 
 router.get(
   '/me/detailed',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   attendanceController.myDetailedReport
 );
 

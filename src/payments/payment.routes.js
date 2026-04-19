@@ -7,21 +7,21 @@ const router = Router();
 // Student: view unpaid dues
 router.get(
   '/dues',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   paymentController.myDues
 );
 
 // Student: view full payment history
 router.get(
   '/dues/history',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   paymentController.dueHistory
 );
 
 // Student: get total outstanding balance
 router.get(
   '/outstanding',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   paymentController.outstanding
 );
 
@@ -42,14 +42,14 @@ router.post(
 // Student: create a Razorpay order for a specific due
 router.post(
   '/dues/:id/order',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   paymentController.createOrder
 );
 
 // Student: verify Razorpay payment and settle the due
 router.post(
   '/dues/:id/verify',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   paymentController.verifyPayment
 );
 

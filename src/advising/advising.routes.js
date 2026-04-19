@@ -11,6 +11,13 @@ router.post(
   advisingController.createNote
 );
 
+// Create batch advising note
+router.post(
+  '/batch',
+  requireRoles('faculty', 'hod', 'superadmin'),
+  advisingController.createBatchNote
+);
+
 // Get all notes this faculty member has written
 router.get(
   '/my-notes',

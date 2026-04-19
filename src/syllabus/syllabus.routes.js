@@ -32,7 +32,7 @@ router.patch(
 // Students get progress numbers
 router.get(
   '/overview',
-  requireRoles('student'),
+  requireRoles('student', 'council'),
   syllabusController.studentOverview
 );
 
